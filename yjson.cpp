@@ -9,6 +9,7 @@
 #include <utility>
 #include <cmath>
 #include <algorithm>
+#include <assert.h>
 
 #include "yjson.h"
 #include "ystring.h"
@@ -30,8 +31,8 @@ inline const char* goEnd(const char* begin)
     return begin;
 }
 
-const unsigned char YJson::utf8bom[] = {0xEF, 0xBB, 0xBF};
-const unsigned char YJson::utf16le[] = {0xFF, 0xFE};
+const unsigned char YJson::utf8bom[] = { 0xEF, 0xBB, 0xBF };
+const unsigned char YJson::utf16le[] = { 0xFF, 0xFE };
 
 YJson::YJson(const char* str) { strict_parse<const char*>(str, goEnd(str)); }
 
@@ -58,13 +59,13 @@ YJson::YJson(const std::initializer_list<YJson>& lst)
 
 YJson::YJson(const std::initializer_list<const char*>& lst)
 {
-    YJson* iter, **child = &_child;
+    YJson* iter, **child = &_value.child;
     for (const auto& c: lst)
     {
         iter = new YJson();
         auto len = strlen(c) + 1;
-        iter->_value = new char[len];
-        std::copy(c, c+len, iter->_value);
+        iter->_value.value = new char[len];
+        std::copy(c, c+len, iter->_value.value);
         iter->_type = YJson::String;
         child = &(*child = iter)->_next;
     }
@@ -144,44 +145,35 @@ void YJson::loadFile(std::ifstream& file)
     //qout << "文件初始化结束";
 }
 
-//复制json，当parent为NULL，如果自己有key用自己的key
-void YJson::CopyJson(const YJson* json, YJson* parent)
+//复制json, 不复制顶层 key
+YJson::YJson(const YJson& json)
 {
-    /*
-    if (!(_parent = parent) || parent->_type != YJson::Object)
-    {
-        delete[] _key; _key = nullptr;
-    }
-    else
-    */
-    if (!_key && json->_key)
-    {
-        _key = YString::StrJoin<char>(json->_key);
-    }
-
-    if (_type == YJson::Array || _type == YJson::Object)
-    {
+    _type = json._type;
+    if (_type == YJson::Array) {
         YJson *child = nullptr, *childx = nullptr;
-        if ((child = json->_child))
-        {
-            childx = _child = new YJson(static_cast<YJson>(_type));
-            _child->_type = child->_type;
-            _child->CopyJson(child, this);
-            while ((child = child->_next))
-            {
-                childx->_next = new YJson;
-                childx->_next->_type = child->_type;
-                childx->_next->CopyJson(child, this);
-                childx->_next->_prev = childx; childx = childx->_next;
+        if ((child = json._value.child)) {
+            childx = _value.child = new YJson(*child);
+            while ((child = child->_next)) {
+                childx->_next = new YJson(*child);
+                childx = childx->_next;
             }
         }
-    }
-    else if (_type == YJson::String)
-        _value = YString::StrJoin<char>(reinterpret_cast<char*>(json->_value));
-    else if (_type == YJson::Number)
-    {
-        _value = new char[sizeof (double)];
-        memcpy(_value, json->_value, sizeof (double));
+    } else if (_type == YJson::Object) {
+        YJson *child = nullptr, *childx = nullptr;
+        if ((child = json._value.child)) {
+            childx = _value.child = new YJson(*child);
+            childx->_key = YString::StrJoin<char>(child->_key);
+            while ((child = child->_next)) {
+                childx->_next = new YJson(*child);
+                childx = childx->_next;
+                childx->_key = YString::StrJoin<char>(child->_key);
+            }
+        }
+    } else if (_type == YJson::String) {
+        _value.value = YString::StrJoin<char>(reinterpret_cast<char*>(json._value.value));
+    } else if (_type == YJson::Number) {
+        _value.value = new char[sizeof (double)];
+        memcpy(_value.value, json._value.value, sizeof (double));
     }
 }
 
@@ -202,7 +194,7 @@ bool YJson::isSameTo(const YJson *other)
     case YJson::Array:
     case YJson::Object:
     {
-        YJson* child1 = _child, *child2 = other->_child;
+        YJson* child1 = _value.child, *child2 = other->_value.child;
         if (child1) {
             if (!child2)
                 return false;
@@ -223,9 +215,9 @@ bool YJson::isSameTo(const YJson *other)
             return true;
     }
     case YJson::Number:
-        return !memcmp(_value, other->_value, sizeof (double));
+        return !memcmp(_value.value, other->_value.value, sizeof (double));
     case YJson::String:
-        return !strcmp(_value, other->_value);
+        return !strcmp(_value.value, other->_value.value);
     case YJson::Null:
     case YJson::False:
     case YJson::True:
@@ -236,8 +228,8 @@ bool YJson::isSameTo(const YJson *other)
 
 int YJson::size() const
 {
-    int j = 0; YJson* child = _child;
-    if (_child) {
+    int j = 0; YJson* child = _value.child;
+    if (_value.child) {
         ++j;
         while ((child = child->_next))
             ++j;
@@ -249,9 +241,9 @@ std::string YJson::urlEncode() const
 {
     std::string param;
     char* value = nullptr;
-    if (_type == YJson::Object && _child)
+    if (_type == YJson::Object && _value.child)
     {
-        YJson* ptr = _child;
+        YJson* ptr = _value.child;
         do {
             param += ptr->_key;
             param.push_back('=');
@@ -262,7 +254,7 @@ std::string YJson::urlEncode() const
                 delete [] value;
                 break;
             case YJson::String:
-                param.append(YEncode::urlEncode(ptr->_value, strlen(ptr->_value)));
+                param.append(YEncode::urlEncode(ptr->_value.value, strlen(ptr->_value.value)));
                 break;
             case YJson::True:
                 param.append("true");
@@ -289,9 +281,9 @@ std::string YJson::urlEncode(const char *url) const
 {
     std::string param;
     char* value = nullptr;
-    if (_type == YJson::Object && _child)
+    if (_type == YJson::Object && _value.child)
     {
-        YJson* ptr = _child;
+        YJson* ptr = _value.child;
         do {
             param += ptr->_key;
             param.push_back('=');
@@ -302,7 +294,7 @@ std::string YJson::urlEncode(const char *url) const
                 delete [] value;
                 break;
             case YJson::String:
-                param.append(YEncode::urlEncode(ptr->_value, strlen(ptr->_value)));
+                param.append(YEncode::urlEncode(ptr->_value.value, strlen(ptr->_value.value)));
                 break;
             case YJson::True:
                 param.append("true");
@@ -329,9 +321,9 @@ std::string YJson::urlEncode(const std::string& url) const
 {
     std::string param;
     char* value = nullptr;
-    if (_type == YJson::Object && _child)
+    if (_type == YJson::Object && _value.child)
     {
-        YJson* ptr = _child;
+        YJson* ptr = _value.child;
         do {
             param += ptr->_key;
             param.push_back('=');
@@ -342,7 +334,7 @@ std::string YJson::urlEncode(const std::string& url) const
                 delete [] value;
                 break;
             case YJson::String:
-                param.append(YEncode::urlEncode(ptr->_value, strlen(ptr->_value)));
+                param.append(YEncode::urlEncode(ptr->_value.value, strlen(ptr->_value.value)));
                 break;
             case YJson::True:
                 param.append("true");
@@ -367,225 +359,181 @@ std::string YJson::urlEncode(const std::string& url) const
 
 YJson::~YJson()
 {
-    delete [] _value;
     delete[] _key;
-    delete _child;
-    if (_prev) _prev->_next = nullptr;
+    if (_type == YJson::Array || _type == YJson::Object) {
+        delete _value.child;
+    } else {
+        delete [] _value.value;
+    }
     delete _next;
 }
 
-YJson* YJson::find(const char* key) const
+YJson*& YJson::find(const char* key)
 {
-    if (_type == YJson::Object)
-    {
-        YJson *child = _child;
-        if (child && child->_key)
-        {
-            do {
-                if (!YString::strcmp<const char*>(child->_key, key))
-                    return child;
-            } while ((child = child->_next));
-        }
+    assert(_type == YJson::Object);
+    YJson* child = _value.child;
+    if (!child || !YString::strcmp<const char*>(child->_key, key))
+        return _value.child;
+    while (child->_next) {
+        if (!YString::strcmp<const char*>(child->_next->_key, key))
+            break;
+        child = child->_next;
     }
-    return nullptr;
+    return child->_next;
 }
 
-YJson *YJson::find(const std::string &key) const
+YJson*& YJson::find(const std::string &key)
 {
-    if (_type == YJson::Object)
-    {
-        YJson *child = _child;
-        if (child && child->_key)
-        {
-            do {
-                if (child->_key == key)
-                    return child;
-            } while ((child = child->_next));
-        }
+    assert(_type == YJson::Object);
+    YJson* child = _value.child;
+    if (!child || child->_key != key)
+        return _value.child;
+    while (child->_next) {
+        if (child->_next->_key == key)
+            break;
+        child = child->_next;
     }
-    return nullptr;
+    return child->_next;
 }
 
-YJson* YJson::find(int key) const
+YJson*& YJson::find(int key)
 {
-    if (_type == YJson::Array || _type == YJson::Object)
-    {
-        YJson *child = _child;
-        if (child)
-        {
-            if (key >= 0)
-            {
-                do {
-                    if (!(key--)) return child;
-                } while ((child = child->_next));
+    assert(_type == YJson::Array || _type == YJson::Object);
+    if (!_value.child) {
+        if (key == 0 || key == -1)
+            return _value.child;
+        throw std::out_of_range("Object or Array has no child.");
+    }
+    if (key == 0) return _value.child;
+    else if (key > 0) {
+        YJson *ptr = _value.child;
+        while (true) {
+            if (--key) {
+                if (!(ptr = ptr->_next)) break;
+                continue;
             }
-            else
-            {
-                int i = 0;
-                while (child->_next) ++i, child = child->_next;
-                if (-key <= ++i)
-                {
-                    while (++key) child = child->_prev;
-                    return child;
-                }
-                
-            }
+            return ptr->_next;
         }
+    } else {
+        YJson *ahead = _value.child, **behand = &_value.child;
+        while (key++) {
+            if (!ahead) goto error;
+            ahead = ahead->_next;
+        }
+        while (ahead) {
+            ahead = ahead->_next;
+            behand = &(*behand)->_next;
+        }
+        return *behand;
     }
-    return nullptr;
+error:
+    throw std::out_of_range("Index is out of range of Object or Array.");
 }
 
-YJson* YJson::findByVal(double value) const
+YJson*& YJson::findByVal(double value)
 {
-    if (_type == YJson::Array || _type == YJson::Object)
-    {
-        YJson *child = _child;
-        if (child) do
-            if (child->_type == YJson::Number && fabs(value-*reinterpret_cast<double*>(child->_value)) <= std::numeric_limits<double>::epsilon())
-                return child;
-        while ((child = child->_next));
-        
-    }
-    return nullptr;
+    assert(_type == YJson::Array || _type == YJson::Object);
+    if (_value.child->_type == YJson::Number && fabs(value-*reinterpret_cast<double*>(_value.child->_value.value)) <= std::numeric_limits<double>::epsilon())
+        return _value.child;
+    YJson *child = _value.child, *temp = child->_next;
+    if (temp) do {
+        if (temp->_type == YJson::Number && fabs(value-*reinterpret_cast<double*>(temp->_value.value)) <= std::numeric_limits<double>::epsilon())
+            return child->_next;
+        child = temp;
+    } while ((temp = child->_next));
+    return child->_next;
 }
 
-YJson* YJson::findByVal(const char* str) const
+YJson*& YJson::findByVal(const char* str)
 {
-    if (_type == YJson::Array || _type == YJson::Object)
-    {
-        YJson *child = _child;
-        if (child) do
-            if (child->_type == YJson::String && !YString::strcmp<const char*>(reinterpret_cast<char*>(child->_value), str))
-                return child;
-        while ((child = child->_next));
-        
-    }
-    return nullptr;
+    assert(_type == YJson::Array || _type == YJson::Object);
+    if (_value.child->_type == YJson::String && !YString::strcmp<const char*>(reinterpret_cast<char*>(_value.child->_value.value), str))
+        return _value.child;
+    YJson *child = _value.child, *temp = child->_next;
+    if (temp) do {
+        if (temp->_type == YJson::String && !YString::strcmp<const char*>(reinterpret_cast<char*>(temp->_value.value), str))
+            return child->_next;
+        child = temp;
+    } while ((temp = child->_next));
+    return child->_next;
 }
 
-// YJson* YJson::getTop() const
-// {
-//     const YJson* top = this;
-//     while (true)
-//     {
-//         if (top->_parent) top = top->_parent;
-//         else return const_cast<YJson*>(top);
-//     }
-// }
-
-YJson* YJson::append(const YJson& js, const char* key)
+YJson*& YJson::append(const YJson& js, const char* key)
 {
-    if (_type == YJson::Object)
-        {if (!key && !js._key) return nullptr;}
-    else
-        {if (key || js._key) return nullptr;}
-
-    YJson* child = append(js._type, key); *child = js;
-    if (key)
-    {
+    YJson*& child = append(js._type, key); *child = js;
+    if (key) {
         delete[] child->_key;
         child->_key = YString::StrJoin<char>(key);
     }
     return child;
 }
 
-YJson* YJson::append(YJson::Type type, const char* key)
+YJson*& YJson::append(YJson::Type type, const char* key)
 {
-    YJson* child = _child;
-    if (child) {
-        while (child->_next) child = child->_next;
+    if (_type == YJson::Object && !key)
+        throw std::invalid_argument("Object item key is not provided!");
+    YJson **result;
+    if (_value.child) {
+        YJson* child = _value.child;
+        while (child->_next) {
+            child = child->_next;
+        }
         child->_next = new YJson;
-        child->_next->_prev = child; child = child->_next;
+        result = &child->_next;
     } else {
-        _child = child = new YJson;
-        // _child->_parent = this;
+        _value.child = new YJson;
+        result = &_value.child;
     }
-    // child->_parent = this;
-    child->_type = type;
+    (*result)->_type = type;
+    if (key) (*result)->_key = YString::StrJoin<char>(key);
     switch (type) {
     case YJson::String:
-        child->_value = new char[1] {0};
+        // child->_value = new char[1] {0};
         break;
     case YJson::Number:
-        child->_value = new char[sizeof (double)] {0};
+        (*result)->_value.value = new char[sizeof (double)] {0};
     default:
         break;
     }
-    if (key) child->_key = YString::StrJoin<char>(key);
+    return *result;
+}
+
+YJson*& YJson::append(double value, const char* key)
+{
+    YJson*& child = append(YJson::Number, key);
+    memcpy(child->_value.value, &value, sizeof (double));
     return child;
 }
 
-YJson* YJson::append(double value, const char* key)
+YJson*& YJson::append(const char* str, const char* key)
 {
-    if (_type == YJson::Object)
-        {if (!key) return nullptr;}
-    else
-        {if (key) return nullptr;}
-    YJson* child = append(YJson::Number, key);
-    // child->_value = new char[sizeof (double)];
-    memcpy(child->_value, &value, sizeof (double));
-    // if (key) child->_key = YString::StrJoin<char>(key);
+    YJson*& child = append(YJson::String, key);
+    child->_value.value = YString::StrJoin<char>(str);
     return child;
 }
 
-YJson* YJson::append(const char* str, const char* key)
+YJson*& YJson::append(const std::string &str, const char *key)
 {
-    if (_type == YJson::Object) {
-        if (!key) return nullptr;
-    }
-    else if (key || _type != YJson::Array) return nullptr;
-    YJson* child = append(YJson::String, key);
-    delete [] child->_value;
-    child->_value = YString::StrJoin<char>(str);
+    YJson*& child = append(YJson::String, key);
+    child->_value.value = new char[str.length()+1];
+    std::copy(str.begin(), str.end(), child->_value.value);
+    child->_value.value[str.length()] = 0;
     return child;
 }
 
-YJson *YJson::append(const std::string &str, const char *key)
+YJson*& YJson::append(bool val, const char* key)
 {
-    if (_type == YJson::Object) {
-        if (!key) return nullptr;
-    }
-    else if (key || _type != YJson::Array) return nullptr;
-    YJson* child = append(YJson::String, key);
-    delete[] child->_value;
-    child->_value = new char[str.length()+1];
-    std::copy(str.begin(), str.end(), child->_value);
-    child->_value[str.length()] = 0;
-    // if (key) child->_key = YString::StrJoin<char>(key);
-    return child;
+    return append(YJson::Type(val), key);
 }
 
-YJson* YJson::append(bool val, const char* key)
+bool YJson::remove(YJson*& item)
 {
-    if (_type == YJson::Object)
-        {if (!key) return nullptr;}
-    else
-        {if (key) return nullptr;}
-    YJson* child = append(YJson::Type(val), key);
-    return child;
-}
-
-bool YJson::remove(YJson* item)
-{
-    if (item)
-    {
-        if (item->_prev)
-        {
-            if ((item->_prev->_next = item->_next))
-                item->_next->_prev = item->_prev;
-        }
-        else
-        {
-            if ((_child = item->_next)) {
-                _child->_prev = nullptr;
-            }
-        }
-        item->_prev = nullptr; item->_next = nullptr;
-        delete item;
-        return true;
-    }
-    else
-        return false;
+    if (!item) return false;
+    YJson* temp = item;
+    item = item->_next;
+    temp->_next = nullptr;
+    delete temp;
+    return true;
 }
 
 bool YJson::isUtf8BomFile(const std::string &path)
@@ -629,7 +577,7 @@ bool YJson::isSameTo(const YJson &other, bool cmpKey)
     case YJson::Array:
     case YJson::Object:
     {
-        YJson* child1 = _child, *child2 = other._child;
+        YJson* child1 = _value.child, *child2 = other._value.child;
         if (child1) {
             if (!child2)
                 return false;
@@ -650,9 +598,9 @@ bool YJson::isSameTo(const YJson &other, bool cmpKey)
             return true;
     }
     case YJson::Number:
-        return !memcmp(_value, other._value, sizeof (double));
+        return !memcmp(_value.value, other._value.value, sizeof (double));
     case YJson::String:
-        return !strcmp(_value, other._value);
+        return !strcmp(_value.value, other._value.value);
     case YJson::Null:
     case YJson::False:
     case YJson::True:
@@ -664,34 +612,28 @@ bool YJson::isSameTo(const YJson &other, bool cmpKey)
 YJson& YJson::operator=(YJson&& s) noexcept
 {
     std::swap(_type, s._type);
-    std::swap(_child, s._child);
     std::swap(_value, s._value);
     return *this;
 }
 
-bool YJson::join(const YJson & js)
+bool YJson::join(const YJson& js)
 {
     if (&js == this)
         return join(YJson(*this));
     if (_type != js._type || (_type != YJson::Array && _type != YJson::Object))
         return false;
-    YJson *child = _child;
-    YJson *childx = js._child;
-    if (child)
-    {
+    YJson *child = _value.child;
+    YJson *childx = js._value.child;
+    if (child) {
         while (child->_next) child = child->_next;
-        if (childx)
-        {
+        if (childx) {
             do {
                 child->_next = new YJson(*childx);
-                child->_next->_key = YString::StrJoin<char>(childx->_key);
-                child->_next->_prev = child;
                 child = child->_next;
+                child->_key = YString::StrJoin<char>(childx->_key);
             } while ((childx = childx->_next));
         }
-    }
-    else if (childx)
-    {
+    } else if (childx) {
         *this = js;
     }
     return true;
@@ -699,13 +641,11 @@ bool YJson::join(const YJson & js)
 
 YJson YJson::join(const YJson & j1, const YJson & j2)
 {
-    if ((j1._type != YJson::Array && j1._type != YJson::Object) || j2._type != j1._type)
-    {
+    if ((j1._type != YJson::Array && j1._type != YJson::Object) || j2._type != j1._type) {
         return YJson();
-    }
-    else
-    {
-        YJson js(j1); js.join(j2);
+    } else {
+        YJson js(j1);
+        js.join(j2);
         return YJson(js);
     }
 }
@@ -923,8 +863,7 @@ T YJson::parse_value(T value, T end)
 
 char* YJson::print_value()
 {
-    switch (_type)
-    {
+    switch (_type) {
     case YJson::Null:
         return  joinKeyValue("null", false);
     case YJson::False:
@@ -934,7 +873,7 @@ char* YJson::print_value()
     case YJson::Number:
         return joinKeyValue(print_number(), true);
     case YJson::String:
-        return joinKeyValue(print_string(_value), true);;
+        return joinKeyValue(print_string(_value.value), true);;
     case YJson::Array:
         return print_array();
     case YJson::Object:
@@ -946,8 +885,7 @@ char* YJson::print_value()
 
 char* YJson::print_value(int depth)
 {
-    switch (_type)
-    {
+    switch (_type) {
     case YJson::Null:
         return  joinKeyValue("null", depth, false);
     case YJson::False:
@@ -957,7 +895,7 @@ char* YJson::print_value(int depth)
     case YJson::Number:
         return joinKeyValue(print_number(), depth, true);
     case YJson::String:
-        return joinKeyValue(print_string(_value), depth, true);
+        return joinKeyValue(print_string(_value.value), depth, true);
     case YJson::Array:
         return print_array(depth);
     case YJson::Object:
@@ -971,8 +909,8 @@ template<typename T>
 T YJson::parse_number(T num, T)
 {
     _type = YJson::Number;
-    _value = new char[sizeof (double)] {0};
-    double *value_ptr = reinterpret_cast<double*>(_value);
+    _value.value = new char[sizeof (double)] {0};
+    double *value_ptr = reinterpret_cast<double*>(_value.value);
     short sign = 1;
     int scale = 0;
     int signsubscale = 1, subscale = 0;
@@ -980,8 +918,7 @@ T YJson::parse_number(T num, T)
         sign = -1;
         ++num;
     }
-    if (*num=='0')
-    {
+    if (*num=='0') {
         return ++num;
     }
     if ('1' <= *num && *num <= '9')
@@ -1017,7 +954,7 @@ T YJson::parse_number(T num, T)
 char* YJson::print_number()
 {
     char* buffer = nullptr;
-    double valuedouble = *reinterpret_cast<double*>(_value);
+    double valuedouble = *reinterpret_cast<double*>(_value.value);
     //qout << "原来的值" << valuedouble;
     if (valuedouble == 0)
     {
@@ -1080,9 +1017,9 @@ T YJson::parse_string(T str, T end)
         throw std::string("不是字符串");
     }
     while (*ptr!='\"' && ptr != end && ++len) if (*ptr++ == '\\') ++ptr;    /* Skip escaped quotes. */
-    _value = new char[len + 1];
+    _value.value = new char[len + 1];
     ptr = str + 1;
-    ptr2 = _value;
+    ptr2 = _value.value;
     while (*ptr != '\"' && *ptr)
     {
         if (*ptr != '\\') *ptr2++ = *ptr++;
@@ -1196,25 +1133,22 @@ T YJson::parse_array(T value, T end)
     //qout << "加载列表";
     YJson *child = nullptr;
     _type = YJson::Array;
-    value=YString::StrSkip(++value);
+    value = YString::StrSkip(++value);
     if (*value==']')
     {
         return value+1;    /* empty array. */
     }
-    _child = child = new YJson;
+    _value.child = child = new YJson;
     value = YString::StrSkip(child->parse_value(YString::StrSkip(value), end));    /* skip any spacing, get the value. */
     if (value >= end) return end;
 
     while (*value==',')
     {
-        if (*YString::StrSkip(value+1)==']')
-        {
+        if (*YString::StrSkip(value+1)==']') {
             return YString::StrSkip(value+1);
         }
-        YJson *new_ = new YJson;
-        child->_next = new_;
-        new_->_prev = child;
-        child = new_;
+        child->_next = new YJson;
+        child = child->_next;
         value = YString::StrSkip(child->parse_value(YString::StrSkip(value + 1), end));
         if (value >= end) return end;
     }
@@ -1228,7 +1162,7 @@ char* YJson::print_array()
 {
     //qout << "打印列表开始";
     std::deque<char*> entries;
-    YJson *child = _child;
+    YJson *child = _value.child;
     if (!child)
     {
         return joinKeyValue("[]", false);
@@ -1243,7 +1177,7 @@ char* YJson::print_array(int depth)
 {
     //qout << "打印列表开始";
     std::deque<char*> entries;
-    YJson *child = _child;
+    YJson *child = _value.child;
     char*buffer = nullptr;
     if (!child)
         return joinKeyValue("[]", depth, false);
@@ -1270,11 +1204,11 @@ T YJson::parse_object(T value, T end)
     _type = YJson::Object;
     value = YString::StrSkip(++value);
     if (*value == '}') return value + 1;
-    _child = child = new YJson;
+    _value.child = child = new YJson;
     value = YString::StrSkip(child->parse_string(YString::StrSkip(value), end));
     if (value >= end) return end;
-    child->_key = child->_value;
-    child->_value = nullptr;
+    child->_key = child->_value.value;
+    child->_value.value = nullptr;
     //qout << "中间断开";
     if (*value != ':')
     {
@@ -1283,16 +1217,15 @@ T YJson::parse_object(T value, T end)
     value = YString::StrSkip(child->parse_value(YString::StrSkip(value + 1), end));
     while (*value==',')
     {
-        if (*YString::StrSkip(value+1)=='}')
-        {
+        if (*YString::StrSkip(value+1)=='}') {
             return YString::StrSkip(value+1);
         }
-        YJson *new_ = new YJson;
-        child->_next = new_; new_->_prev = child; child = new_;
+        child->_next = new YJson;
+        child = child->_next;
         value = YString::StrSkip(child->parse_string(YString::StrSkip(value+1), end));
-        child->_key = child->_value; child->_value = nullptr;
-        if (*value!=':')
-        {
+        child->_key = child->_value.value;
+        child->_value.value = nullptr;
+        if (*value!=':') {
             throw std::string("加载字典时，没有找到冒号");
         }
         value = YString::StrSkip(child->parse_value(YString::StrSkip(value+1), end));    /* skip any spacing, get the value. */
@@ -1313,7 +1246,7 @@ char* YJson::print_object()
     //qout << "打印字典开始";
 
     std::deque<char*> entries;
-    YJson *child = _child;
+    YJson *child = _value.child;
     char* buffer = nullptr;
     if (!child) return joinKeyValue("{}", false);;
     do {
@@ -1328,7 +1261,7 @@ char* YJson::print_object(int depth)
 {
     //qout << "打印字典开始";
     std::deque<char*> entries;
-    YJson *child = _child;
+    YJson *child = _value.child;
     char* buffer = nullptr;
     if (!child) return joinKeyValue("{}", depth, false);;
     do {
