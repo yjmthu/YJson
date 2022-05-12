@@ -1,4 +1,0 @@
-/home/yjmthu/Documents/GitHub/YJson/build/CMakeFiles/yjson.dir
-/home/yjmthu/Documents/GitHub/YJson/build/CMakeFiles/test.dir
-/home/yjmthu/Documents/GitHub/YJson/build/CMakeFiles/edit_cache.dir
-/home/yjmthu/Documents/GitHub/YJson/build/CMakeFiles/rebuild_cache.dir
