@@ -23,7 +23,7 @@ template <class C1>
 bool utf8_to_utf16LE(C1 utf16, const char* utf8)
 {
     uint32_t unicode;
-    uint8_t len;// bool double_wchar = false;
+    uint8_t len; // bool double_wchar = false;
     do {
         unicode = static_cast<unsigned char>(*utf8);
         if (unicode < 0x80) len = 1;
@@ -122,8 +122,8 @@ inline unsigned char _fromHex(unsigned char x)
     return y;
 }
 
-template <typename _Ty1=std::string, typename _Ty2=std::string>
-_Ty2 urlEncode(const _Ty1& str)
+template <typename _Ty1=std::string_view, typename _Ty2=std::string>
+_Ty2 urlEncode(const _Ty1 str)
 {
     _Ty2 ret;
     ret.reserve(str.size());
