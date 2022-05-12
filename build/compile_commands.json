@@ -1,0 +1,12 @@
+[
+{
+  "directory": "/home/yjmthu/Documents/GitHub/YJson/build",
+  "command": "/usr/bin/clang++ -I/home/yjmthu/Documents/GitHub/YJson/build -I/home/yjmthu/Documents/GitHub/YJson -g -std=gnu++17 -o CMakeFiles/yjson.dir/yjson.cpp.o -c /home/yjmthu/Documents/GitHub/YJson/yjson.cpp",
+  "file": "/home/yjmthu/Documents/GitHub/YJson/yjson.cpp"
+},
+{
+  "directory": "/home/yjmthu/Documents/GitHub/YJson/build",
+  "command": "/usr/bin/clang++ -I/home/yjmthu/Documents/GitHub/YJson/build -I/home/yjmthu/Documents/GitHub/YJson -g -std=gnu++17 -o CMakeFiles/test.dir/test/main.cpp.o -c /home/yjmthu/Documents/GitHub/YJson/test/main.cpp",
+  "file": "/home/yjmthu/Documents/GitHub/YJson/test/main.cpp"
+}
+]

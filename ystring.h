@@ -220,7 +220,7 @@ StrContainCharInRanges(const T* start, int length, Args...args)
     }
     return start;   
 }
-
+/*
 template <typename T=const char*>
 typename std::enable_if<
                     std::is_same<T, std::string::const_iterator>::value
@@ -231,12 +231,7 @@ typename std::enable_if<
                 ||
                     std::is_same<T, const char*>::value
                      , T>::type
-StrSkip(T content)
-{
-    while (*content && static_cast<const unsigned char>(*content) <= 32)
-        content++;
-    return content;
-}
-}
 
+}
+*/
 #endif // !YSTRING_H
