@@ -1,8 +1,23 @@
 #include "yjson.h"
 
-void file() {
-    YJson js("./test/test.json", YJson::Encode::UTF8);
+void construct() {
+    // YJson js = { { "hello"sv, "hello"sv }, { "world"sv, "world"sv }, { "!"sv, 123} } ;
+    // YJson js = { 1, 2, 3, 4 };
+    using namespace std::literals;
+    YJson js = { { "hello"s, "hello"sv} };
     std::cout << js;
+}
+
+void ifile() {
+    // YJson js("./test/test.json", YJson::Encode::UTF8);
+    YJson js("/home/yjmthu/.config/Neobox/Wallhaven.json", YJson::UTF8);
+    std::cout << js;
+}
+
+void ofile() {
+    using namespace std::literals;
+    YJson js = {{"Hello"s, 12}, {"World", 34}, {"!", {1, 2, 3, 4, 5, 6}}};
+    js.toFile("./test/text.json");
 }
 
 void write() {
@@ -93,6 +108,8 @@ void read() {
 int main() {
     // read();
     // write();
-    file();
+    ifile();
+    // ofile();
+    // construct();
     return 0;
 }

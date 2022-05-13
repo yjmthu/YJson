@@ -6,28 +6,12 @@
 #include "yjson.h"
 #include "yencode.h"
 
-typedef unsigned char byte;
-
-std::string_view::const_iterator StrSkip(std::string_view::const_iterator content)
-{
-    while (*content && static_cast<byte>(*content) <= 32)
-        content++;
-    return content;
-}
-
-constexpr byte utf8bom[] = { 0xEF, 0xBB, 0xBF };
-constexpr byte utf16le[] = { 0xFF, 0xFE };
-
 YJson::YJson(const std::string& path, YJson::Encode encode)
 {
-    std::ifstream file(path, std::ios::in);
+    std::ifstream file(path, std::ios::in | std::ios::binary);
     assert(file.is_open());
     file.seekg(0, std::ios::end);
     size_t size = file.tellg();
-    if (size < 6) {
-        file.close();
-        return ;
-    }
     file.seekg(0, std::ios::beg);
     switch (encode) {
     case YJson::UTF8BOM: {
@@ -36,7 +20,7 @@ YJson::YJson(const std::string& path, YJson::Encode encode)
         file.seekg(3, std::ios::beg);
         file.read(json_string, size - 3);
         file.close();
-        strict_parse(std::string_view(json_string, size-3));
+        strictParse(std::string_view(json_string, size-3));
         delete[] json_string;
         break;
     } case YJson::UTF8: {
@@ -44,28 +28,8 @@ YJson::YJson(const std::string& path, YJson::Encode encode)
         json_string = new char[size];
         file.read(json_string, size);
         file.close();
-        strict_parse(std::string_view(json_string, size));
+        strictParse(std::string_view(json_string, size));
         delete[] json_string;
-        break;
-    } case YJson::UTF16LEBOM: {
-        std::string json_string;
-        file.seekg(2, std::ios::beg);
-        std::wstring json_wstr(size / sizeof(wchar_t), 0);
-        file.read(reinterpret_cast<char*>(&json_wstr[0]), size - 2);
-        YEncode::utf16LE_to_utf8<std::string&, std::wstring::const_iterator>(json_string, json_wstr.cbegin());
-        file.close();
-        std::string_view string_view(json_string);
-        strict_parse(string_view);
-        break;
-    } case YJson::UTF16LE: {
-        std::wstring json_wstr;
-        json_wstr.resize(size/sizeof(wchar_t) + 1);
-        char *ptr = reinterpret_cast<char*>(&json_wstr.front());
-        file.read(ptr, size);
-        std::string json_string;
-        YEncode::utf16LE_to_utf8<std::string&, std::wstring::const_iterator>(json_string, json_wstr.cbegin());
-        file.close();
-        strict_parse(json_string);
         break;
     } default:
         throw std::runtime_error("Unknown file type.");
@@ -73,7 +37,7 @@ YJson::YJson(const std::string& path, YJson::Encode encode)
 
 }
 
-void YJson::strict_parse(std::string_view str)
+void YJson::strictParse(std::string_view str)
 {
     auto temp = StrSkip(str.begin());
     switch (*temp) {
@@ -91,62 +55,65 @@ void YJson::strict_parse(std::string_view str)
 
 std::string YJson::urlEncode() const
 {
+    using namespace std::literals;
     assert(_type == YJson::Object);
-    std::string param;
+    std::ostringstream param;
     for (const auto& [key, value]: *_value.Object) {
-        param += key;
-        param.push_back('=');
+        param << key << '=';
         switch (value._type) {
         case YJson::Number:
             value.printNumber(param);
             break;
         case YJson::String:
-            param.append(YEncode::urlEncode(*value._value.String));
+            param << YEncode::urlEncode(*value._value.String);
             break;
         case YJson::True:
-            param.append("true");
+            param << "true"sv;
             break;
         case YJson::False:
-            param.append("false");
+            param << "false"sv;
             break;
         case YJson::Null:
         default:
-            param.append("null");
+            param << "null"sv;
         }
-        param.push_back('&');
+        param << '&';
     }
-    if (!param.empty()) param.pop_back();
-    return param;
+    auto&& result = param.str();
+    if (!result.empty()) result.pop_back();
+    return result;
 }
 
 std::string YJson::urlEncode(const std::string_view url) const
 {
+    using namespace std::literals;
     assert(_type == YJson::Object);
-    std::string param(url);
+    std::ostringstream param;
+    param << url;
     for (const auto& [key, value]: *_value.Object) {
-        param += key;
-        param.push_back('=');
+        param << key << '=';
         switch (value._type) {
         case YJson::Number:
             value.printNumber(param);
             break;
         case YJson::String:
-            param.append(YEncode::urlEncode(*value._value.String));
+            param << YEncode::urlEncode(*value._value.String);
             break;
         case YJson::True:
-            param.append("true");
+            param << "true"sv;
             break;
         case YJson::False:
-            param.append("false");
+            param << "false"sv;
             break;
         case YJson::Null:
         default:
-            param.append("null");
+            param << "null"sv;
         }
-        param.push_back('&');
+        param << '&';
     }
-    if (!param.empty()) param.pop_back();
-    return param;
+    auto&& result = param.str();
+    if (!result.empty()) result.pop_back();
+    return result;
 }
 
 YJson::~YJson()
@@ -206,114 +173,18 @@ bool YJson::joinO(const YJson& js)
     return true;
 }
 
-bool YJson::toFile(const std::string& name, const YJson::Encode& file_encode, bool fmt)
+YJson::StrIterator YJson::parseValue(YJson::StrIterator first, YJson::StrIterator last)
 {
-    std::string&& buffer = toString(fmt);
-    if (buffer.size()) {
-        switch (file_encode) {
-        case (YJson::UTF16LE): {
-            std::wstring data;
-            data.push_back(*reinterpret_cast<const wchar_t*>(utf16le));
-            YEncode::utf8_to_utf16LE<std::wstring&>(data, buffer);
-            data.back() = L'\n';
-            std::ofstream outFile(name, std::ios::out | std::ios::binary);
-            if (outFile.is_open()) {
-                outFile.write(reinterpret_cast<const char*>(data.data()), data.length() * sizeof(wchar_t));
-                outFile.close();
-            }
-            break;
-        } case UTF8BOM: {
-            std::ofstream outFile(name, std::ios::out | std::ios::binary);
-            if (outFile.is_open())
-            {
-                outFile.write(reinterpret_cast<const char*>(utf8bom), 3);
-                outFile << buffer << std::endl;
-                outFile.close();
-            }
-            break;
-        } default: {
-            std::ofstream outFile(name, std::ios::out | std::ios::binary);
-            if (outFile.is_open())
-            {
-                outFile << buffer << std::endl;
-                outFile.close();
-            }
-            break;
-        }
-        }
-    }
-    return false;
-}
-
-YJson::StrIterator YJson::parseValue(YJson::StrIterator value, YJson::StrIterator end)
-{
-    if (end <= value)
-        return end;
-    if (*value=='\"')                   { _type = YJson::String; _value.String = new std::string; return parseString(*_value.String, value, end); }
-    if (*value=='-' || (*value>='0' && *value<='9'))    { return parseNumber(value, end); }
-    if (*value=='[')                    { return parseArray(value, end); }
-    if (*value=='{')                    { return parseObject(value, end); }
-    if (std::equal(value, value+4, "null"))     { _type= YJson::Null;  return value+4; }
-    if (std::equal(value, value+5, "false"))    { _type= YJson::False; return value+5; }
-    if (std::equal(value, value+4, "true"))     { _type= YJson::True;  return value+4; }
-    return end;
-}
-
-void YJson::printValue(std::string& pre) const
-{
-    switch (_type) {
-    case YJson::Null:
-        pre.append("null");
-        break;
-    case YJson::False:
-        pre.append("false");
-        break;
-    case YJson::True:
-        pre.append("true");
-        break;
-    case YJson::Number:
-        printNumber(pre);
-        break;
-    case YJson::String:
-        printString(pre, *_value.String);
-        break;
-    case YJson::Array:
-        printArray(pre);
-        break;
-    case YJson::Object:
-        return printObject(pre);
-    default:
-        throw std::runtime_error("Unknown YJson Type.");
-    }
-}
-
-void YJson::printValue(std::string& pre, int depth) const
-{
-    switch (_type) {
-    case YJson::Null:
-        pre.append("null");
-        break;
-    case YJson::False:
-        pre.append("false");
-        break;
-    case YJson::True:
-        pre.append("true");
-        break;
-    case YJson::Number:
-        printNumber(pre);
-        break;
-    case YJson::String:
-        printString(pre, *_value.String);
-        break;
-    case YJson::Array:
-        printArray(pre, depth);
-        break;
-    case YJson::Object:
-        printObject(pre, depth);
-        break;
-    default:
-        throw std::runtime_error("Unknown YJson Type.");
-    }
+    if (last <= first)
+        return last;
+    if (*first=='\"')                   { _type = YJson::String; _value.String = new std::string; return parseString(*_value.String, first, last); }
+    if (*first=='-' || (*first>='0' && *first<='9'))    { return parseNumber(first, last); }
+    if (*first=='[')                    { return parseArray(first, last); }
+    if (*first=='{')                    { return parseObject(first, last); }
+    if (std::equal(first, first+4, "null"))     { _type= YJson::Null;  return first+4; }
+    if (std::equal(first, first+5, "false"))    { _type= YJson::False; return first+5; }
+    if (std::equal(first, first+4, "true"))     { _type= YJson::True;  return first+4; }
+    return last;
 }
 
 YJson::StrIterator YJson::parseNumber(YJson::StrIterator num, YJson::StrIterator)
@@ -358,27 +229,6 @@ YJson::StrIterator YJson::parseNumber(YJson::StrIterator num, YJson::StrIterator
     }
     *_value.Double *= sign * pow(10, scale + signsubscale * subscale);
     return num;
-}
-
-void YJson::printNumber(std::string& pre) const
-{
-    const double valuedouble = *_value.Double;
-    if (valuedouble == 0) {
-        pre.push_back('0');
-    } else if (fabs(round(valuedouble) - valuedouble) <= std::numeric_limits<double>::epsilon() && valuedouble <= (double)std::numeric_limits<int>::max() && valuedouble >= (double)std::numeric_limits<int>::min()) {
-        char temp[21] = { 0 };
-        sprintf(temp, "%.0lf", valuedouble);
-        pre.append(temp);
-    } else {
-        char temp[64] = {0};
-        if (fabs(floor(valuedouble)-valuedouble)<=std::numeric_limits<double>::epsilon() && fabs(valuedouble)<1.0e60)
-            sprintf(temp,"%.0f",valuedouble);
-        else if (fabs(valuedouble)<1.0e-6 || fabs(valuedouble)>1.0e9)
-            sprintf(temp,"%e",valuedouble);
-        else
-            sprintf(temp,"%f",valuedouble);
-        pre.append(temp);
-    }
 }
 
 template<typename T>
@@ -462,63 +312,6 @@ YJson::StrIterator YJson::parseString(std::string& des, YJson::StrIterator str, 
     return ++str;
 }
 
-void YJson::printString(std::string& pre, const std::string_view str)
-{
-    const auto size_old = pre.size();
-    const char* ptr;
-    std::string::iterator ptr2;
-    size_t len = 0, flag = 0; unsigned char token;
-    
-    for (ptr = str.begin(); *ptr; ptr++)
-        flag |= ((*ptr > 0 && *ptr < 32) || (*ptr == '\"') || (*ptr == '\\')) ? 1 : 0;
-    if (!flag) {
-        len = ptr - str.begin();
-        pre.resize(size_old + len + 2);
-        ptr2 = pre.begin() + size_old;
-        *ptr2++ = '\"';
-        std::copy(str.begin(), str.end(), ptr2);
-        *(ptr2 += len) = '\"';
-        return;
-    }
-    if (str.empty()) {
-        pre += "\"\"" ;
-        return;
-    }
-    ptr = str.begin();
-    while ((token = (unsigned char)*ptr) && ++len) {
-        if (strchr("\"\\\b\f\n\r\t", token))
-            len++;
-        else if (token < 32)
-            len += 5;
-        ptr++;
-    }
-
-    pre.resize(size_old + len+2);
-    ptr2 = pre.begin() + size_old;
-    ptr = str.begin();
-    *ptr2++ = '\"';
-    while (*ptr)
-    {
-        if ((unsigned char)*ptr > 31 && *ptr != '\"' && *ptr != '\\') *ptr2++ = *ptr++;
-        else
-        {
-            *ptr2++='\\';
-            switch (token = (unsigned char)*ptr++)
-            {
-            case '\\':    *ptr2++ = '\\';   break;
-            case '\"':    *ptr2++ = '\"';   break;
-            case '\b':    *ptr2++ = 'b';    break;
-            case '\f':    *ptr2++ = 'f';    break;
-            case '\n':    *ptr2++ = 'n';    break;
-            case '\r':    *ptr2++ = 'r';    break;
-            case '\t':    *ptr2++ = 't';    break;
-            default: sprintf(ptr2.base(), "u%04x",token); ptr2+=5;    break;
-            }
-        }
-    }
-    *ptr2 = '\"';
-}
-
 YJson::StrIterator YJson::parseArray(YJson::StrIterator value, YJson::StrIterator end)
 {
     _type = YJson::Array;
@@ -543,49 +336,6 @@ YJson::StrIterator YJson::parseArray(YJson::StrIterator value, YJson::StrIterato
     if (*value++ == ']')
         return value;
     throw std::string("未匹配到列表结尾！");
-}
-
-void YJson::printArray(std::string& pre) const
-{
-    if (_value.Array->empty()) {
-        pre.append("[]");
-        return;
-    }
-    pre.push_back('[');
-    for (const auto& i: *_value.Array) {
-        i.printValue(pre);
-        pre.push_back(',');
-    }
-    pre.back() = ']';
-}
-
-void YJson::printArray(std::string& pre, int depth) const
-{
-    if (_value.Array->empty()) {
-        pre.append("[]");
-        return;
-    }
-    ++depth;
-    pre.push_back('[');
-    pre.push_back('\n');
-    for (const auto& i: *_value.Array) {
-        pre.append(std::string(depth<<2, ' '));
-        i.printValue(pre, depth);
-        pre.push_back(',');
-        pre.push_back('\n');
-    }
-    auto ptr = pre.end() - 2;
-    *ptr = '\n';
-    if (--depth) {
-        *++ptr = ' ';
-        depth *= 4;
-        while (--depth) {
-            pre.push_back(' ');
-        }
-        pre.push_back(']');
-    } else {
-        *++ptr = ']';
-    }
 }
 
 YJson::StrIterator YJson::parseObject(YJson::StrIterator value, YJson::StrIterator end)
@@ -619,53 +369,4 @@ YJson::StrIterator YJson::parseObject(YJson::StrIterator value, YJson::StrIterat
     }
     throw std::runtime_error("Invalid Object.");
     return end;
-}
-
-void YJson::printObject(std::string& pre) const
-{
-    if (_value.Object->empty()) {
-        pre.append("{}");
-        return;
-    }
-    pre.push_back('{');
-    for (const auto& [i, j]: *_value.Object) {
-        printString(pre, i);
-        pre.push_back(':');
-        j.printValue(pre);
-        pre.push_back(',');
-    }
-    pre.back() = '}';
-}
-
-void YJson::printObject(std::string& pre, int depth) const
-{
-    if (_value.Object->empty()) {
-        pre.append("{}");
-        return;
-    }
-    ++depth;
-    pre.push_back('{');
-    pre.push_back('\n');
-    for (const auto& [i, j]: *_value.Object) {
-        pre.append(std::string(depth<<2, ' '));
-        printString(pre, i);
-        pre.push_back(':');
-        pre.push_back(' ');
-        j.printValue(pre, depth);
-        pre.push_back(',');
-        pre.push_back('\n');
-    }
-
-    auto ptr = pre.end() - 2;
-    *ptr = '\n';
-    if (--depth) {
-        *++ptr = ' ';
-        depth *= 4;
-        while (--depth) {
-            pre.push_back(' ');
-        }
-        pre.push_back('}');
-    } else {
-        *++ptr = '}';
-    }
 }
