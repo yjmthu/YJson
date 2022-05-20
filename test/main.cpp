@@ -4,7 +4,7 @@ void construct() {
     // YJson js = { { "hello"sv, "hello"sv }, { "world"sv, "world"sv }, { "!"sv, 123} } ;
     // YJson js = { 1, 2, 3, 4 };
     using namespace std::literals;
-    YJson js = { { "hello"s, "hello"sv} };
+    YJson js = YJson::O { { "hello"sv, "hello"sv}, { "jk"sv, "lm"sv }, {"峨嵋派", "空洞派"} };
     std::cout << js;
 }
 
@@ -16,7 +16,7 @@ void ifile() {
 
 void ofile() {
     using namespace std::literals;
-    YJson js = {{"Hello"s, 12}, {"World", 34}, {"!", {1, 2, 3, 4, 5, 6}}};
+    YJson js = YJson::O {{"Hello"sv, 12}, {"World", 34}, {"!", {1, 2, 3, 4, 5, 6}}};
     js.toFile("./test/text.json");
 }
 

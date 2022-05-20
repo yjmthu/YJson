@@ -33,13 +33,6 @@ public:
     typedef ArrayType::iterator ArrayIterator;
 private:
     typedef std::string_view::const_iterator StrIterator;
-    struct _String {
-        std::string_view _data;
-        inline _String(const char* str): _data(str) {}
-        inline _String(const std::string_view& str): _data(str) {}
-        inline _String(const std::string& str): _data(str) {}
-        inline _String(std::string_view str): _data() { }
-    };
 
     static inline StrIterator StrSkip(StrIterator content) {
         while (*content && static_cast<byte>(*content) <= 32)
@@ -67,6 +60,7 @@ public:
     inline YJson(double val): _type(YJson::Number) { _value.Double = new double(val); }
     inline YJson(int val): _type(YJson::Number) { _value.Double = new double(val); }
     inline YJson(const std::string_view str): _type(YJson::String) { _value.String = new std::string(str); }
+    inline YJson(const std::string& str): _type(YJson::String) { _value.String = new std::string(str); }
     inline YJson(const char* str): _type(YJson::String) { _value.String = new std::string(str); }
     inline YJson(bool val): _type(val? YJson::True: YJson::False) {}
     YJson(const YJson& other): _type(other._type) {
@@ -88,14 +82,16 @@ public:
         }
     }
 
-    YJson(std::initializer_list<std::pair<_String, YJson>> lst):_type(YJson::Type::Object) {
+    typedef std::initializer_list<std::pair<const std::string_view, YJson>> O;
+    YJson(YJson::O lst): _type(YJson::Type::Object) {
         _value.Object = new ObjectType;
         for (auto& [i, j]: lst) {
-            _value.Object->emplace_back(i._data, std::move(j));
+            _value.Object->emplace_back(i, std::move(j));
         }
     }
 
-    YJson(std::initializer_list<YJson> lst):_type(YJson::Array) {
+    typedef std::initializer_list<YJson> A;
+    YJson(YJson::A lst): _type(YJson::Array) {
         _value.Array = new ArrayType;
         for (auto& i: lst) {
             _value.Array->emplace_back(std::move(i));
@@ -107,9 +103,10 @@ public:
 
     inline YJson::Type getType() const { return _type; }
 
+    inline std::string& getValueString() { return *_value.String; }
     inline const std::string& getValueString() const { return *_value.String; }
     inline int getValueInt() { return *_value.Double; }
-    inline double getValueDouble() { return *_value.Double; }
+    inline double& getValueDouble() { return *_value.Double; }
     inline ObjectType& getObject() { return *_value.Object; }
     inline ArrayType& getArray() { return *_value.Array; }
     std::string urlEncode() const;
@@ -145,6 +142,7 @@ public:
     }
 
     inline YJson& operator=(const YJson& other) {
+        if (this == &other) return *this;
         clearData();
         _type = other._type;
         switch (_type) {
@@ -413,7 +411,7 @@ public:
     inline void clearA() { _value.Array->clear(); }
     inline void clearO() { _value.Object->clear(); }
     inline ArrayIterator beginA() { return _value.Array->begin(); }
-    inline ObjectIterator begin0() { return _value.Object->begin(); }
+    inline ObjectIterator beginO() { return _value.Object->begin(); }
     inline ArrayIterator endA() { return _value.Array->end(); }
     inline ObjectIterator endO() { return _value.Object->end(); }
 
