@@ -275,6 +275,7 @@ public:
 
     bool operator==(bool val) const { return _type == static_cast<YJson::Type>(val); }
     bool operator==(const std::string_view str) const { return _type == YJson::String && *_value.String == str; }
+    bool operator==(const std::string& str) const { return _type == YJson::String && *_value.String == str; }
     bool operator==(const char* str) const { return _type == YJson::String && *_value.String == str; }
 
     inline void setText(const std::string_view val) {
@@ -288,6 +289,12 @@ public:
         _type = YJson::String;
         _value.String = new std::string(val);
     }
+
+    // inline void setText(const std::filesystem::path& val) {
+    //     clearData();
+    //     _type = YJson::String;
+    //     _value.String = new std::string(val);
+    // }
 
     inline void setValue(double val) {
         clearData();
