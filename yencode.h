@@ -131,8 +131,8 @@ _Ty2 urlEncode(const _Ty1 str)
     {
         if (isalnum(static_cast<unsigned char>(i)) || strchr("-_.~", i))
             ret.push_back(i);
-        else if (i == ' ')
-            ret.push_back('+');
+        // else if (i == ' ')
+        //     ret.push_back('+');
         else
         {
             ret.push_back('%');

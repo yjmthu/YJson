@@ -13,6 +13,8 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <filesystem>
+#include <memory>
 
 typedef unsigned char byte;
 
@@ -62,6 +64,15 @@ public:
     inline YJson(const std::string_view str): _type(YJson::String) { _value.String = new std::string(str); }
     inline YJson(const std::string& str): _type(YJson::String) { _value.String = new std::string(str); }
     inline YJson(const char* str): _type(YJson::String) { _value.String = new std::string(str); }
+    inline YJson(const std::filesystem::path& str): _type(YJson::String)
+    {
+        auto&& temp = str.string();
+        if (!temp.empty() && temp.front() == '"') {
+            _value.String = new std::string(temp.begin() + 1, temp.end() - 1);
+        } else {
+            _value.String = new std::string(std::move(temp));
+        }
+    }
     inline YJson(bool val): _type(val? YJson::True: YJson::False) {}
     YJson(const YJson& other): _type(other._type) {
         switch (_type) {
@@ -80,6 +91,12 @@ public:
         default:
             break;
         }
+    }
+
+    static std::shared_ptr<YJson> Parse(const std::string_view str) {
+        YJson* result = new YJson(YJson::Null);
+        result->parseValue(StrSkip(str.begin()), str.end());
+        return std::shared_ptr<YJson>(result);
     }
 
     typedef std::initializer_list<std::pair<const std::string_view, YJson>> O;
@@ -274,6 +291,14 @@ public:
     }
 
     bool operator==(bool val) const { return _type == static_cast<YJson::Type>(val); }
+    bool operator==(int val) const {
+        if (_type != YJson::Number) return false;
+        return fabs((double)val-*_value.Double) <= std::numeric_limits<double>::epsilon();
+    }
+    bool operator!=(int val) const {
+        if (_type != YJson::Number) return true;
+        return fabs(val-*_value.Double) > std::numeric_limits<double>::epsilon();
+    }
     bool operator==(const std::string_view str) const { return _type == YJson::String && *_value.String == str; }
     bool operator==(const std::string& str) const { return _type == YJson::String && *_value.String == str; }
     bool operator==(const char* str) const { return _type == YJson::String && *_value.String == str; }
@@ -290,11 +315,31 @@ public:
         _value.String = new std::string(val);
     }
 
-    // inline void setText(const std::filesystem::path& val) {
-    //     clearData();
-    //     _type = YJson::String;
-    //     _value.String = new std::string(val);
-    // }
+    inline void setText(const std::string& val) {
+        clearData();
+        _type = YJson::String;
+        _value.String = new std::string(val);
+    }
+
+    inline void setText(std::string&& val) {
+        if (_type != YJson::String) {
+            clearData();
+            _type = YJson::String;
+            _value.String = new std::string;
+        }
+        _value.String->swap(val);
+    }
+
+    inline void setText(const std::filesystem::path& val) {
+        clearData();
+        _type = YJson::String;
+        auto&& str = val.string();
+        if (!val.empty() && str.front() == '"') {
+            _value.String = new std::string(str.begin() + 1, str.end() - 1);
+        } else {
+            _value.String = new std::string(std::move(str));
+        }
+    }
 
     inline void setValue(double val) {
         clearData();
