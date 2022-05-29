@@ -19,6 +19,7 @@ constexpr uint32_t get_0x1s(const int i)
     return (1 << (8-i)) - 1;
 }
 
+
 template <class C1>
 bool utf8_to_utf16LE(C1 utf16, const char* utf8)
 {
@@ -49,11 +50,11 @@ bool utf8_to_utf16LE(C1 utf16, const char* utf8)
 }
 
 template <class C1>
-bool utf8_to_utf16LE(C1 utf16, const std::string& utf8)
+bool utf8_to_utf16LE(C1 utf16, const std::u8string& utf8)
 {
     uint32_t unicode;
     uint8_t len;
-    std::string::const_iterator iter = utf8.begin();
+    std::u8string::const_iterator iter = utf8.begin();
     do {
         unicode = static_cast<unsigned char>(*iter);
         if (unicode < 0x80) len = 1;
@@ -107,81 +108,6 @@ bool utf16LE_to_utf8(C1 utf8, C2 utf16)
     return true;
 }
 
-inline unsigned char _toHex(unsigned char x)
-{
-    return  x > 9 ? x + 55 : x + 48;
-}
-
-inline unsigned char _fromHex(unsigned char x)
-{
-    unsigned char y;
-    if (x >= 'A' && x <= 'Z') y = x - 'A' + 10;
-    else if (x >= 'a' && x <= 'z') y = x - 'a' + 10;
-    else if (x >= '0' && x <= '9') y = x - '0';
-    else throw 0;
-    return y;
-}
-
-template <typename _Ty1=std::string_view, typename _Ty2=std::string>
-_Ty2 urlEncode(const _Ty1 str)
-{
-    _Ty2 ret;
-    ret.reserve(str.size());
-    for (auto i: str)
-    {
-        if (isalnum(static_cast<unsigned char>(i)) || strchr("-_.~", i))
-            ret.push_back(i);
-        // else if (i == ' ')
-        //     ret.push_back('+');
-        else
-        {
-            ret.push_back('%');
-            ret.push_back(_toHex(static_cast<unsigned char>(i) >> 4));
-            ret.push_back(_toHex(static_cast<unsigned char>(i) % 16));
-        }
-    }
-    return ret;
-}
-
-template <typename _Ty=std::string>
-_Ty urlEncode(const char* str, size_t size)
-{
-    _Ty ret;
-    ret.reserve(size);
-    for (size_t i=0; i<size; i++) {
-        if (isalnum(static_cast<unsigned char>(str[i])) || strchr("-_.~", static_cast<int>(str[i])))
-            ret.push_back(str[i]);
-        else if (str[i] == ' ')
-            ret.push_back('+');
-        else
-        {
-            ret.push_back('%');
-            ret.push_back(_toHex(static_cast<unsigned char>(str[i]) >> 4));
-            ret.push_back(_toHex(static_cast<unsigned char>(str[i]) % 16));
-        }
-    }
-    return ret;
-}
-
-template <typename _Ty=std::string>
-std::string UrlDecode(const std::string& str)
-{
-    std::string ret;
-    ret.reserve(str.size());
-    for (size_t i = 0; i < str.length(); i++)
-    {
-        if (str[i] == '+') ret += ' ';
-        else if (str[i] == '%')
-        {
-            if (i + 2 < str.length()) throw 0;
-            unsigned char high = _fromHex((unsigned char)str[++i]);
-            unsigned char low = _fromHex((unsigned char)str[++i]);
-            ret.push_back(high*16 + low);
-        }
-        else ret.push_back(str[i]);
-    }
-    return ret;
-}
 
 }
 
