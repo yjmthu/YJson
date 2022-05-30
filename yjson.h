@@ -23,65 +23,14 @@
 #undef min
 #endif
 
-const char8_t utf8bom[] = { 0xEF, 0xBB, 0xBF };
-const char8_t utf16le[] = { 0xFF, 0xFE };
-
-constexpr char16_t utf16FirstWcharMark[3] = { 0xD800, 0xDC00, 0xE000 };
-constexpr char8_t utf8FirstCharMark[7] = { 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC };
-
-class YJson;
-
-//inline std::ostream& operator<<(std::ostream& out, const std::u8string& str) {
-//    return out << std::string_view(reinterpret_cast<const char*>(str.data()), str.size());
-//}
-//
-//inline std::ostream& operator<<(std::ostream& out, const char8_t* str) {
-//    return out << reinterpret_cast<const char*>(str);
-//}
-//
-//inline std::ostream& operator<<(std::ostream& out, const std::u8string_view& str) {
-//    return out << std::string_view(reinterpret_cast<const char*>(str.data()), str.size());
-//}
-//
-//inline std::ostream& operator<<(std::ostream& out, char8_t str) {
-//    out.write(reinterpret_cast<const char*>(&str), 1);
-//    return out;
-//}
-
 class YJson final
 {
 private:
-    //class YOfstream {
-    //private:
-    //    std::ofstream file;
-    //public:
-    //    YOfstream(const std::filesystem::path& path)
-    //        : file(path, std::ios::out | std::ios::binary)
-    //    {
-    //        
-    //    }
-    //    inline bool is_open() const { return file.is_open(); }
-    //    inline void write(const char8_t* data, size_t size) {
-    //        file.write(reinterpret_cast<const char*>(data), size);
-    //    }
-    //    YOfstream& operator<<(const std::u8string& str) {
-    //        file.write(reinterpret_cast<const char*>(str.data()), str.size());
-    //        return *this;
-    //    }
-    //    YOfstream& operator<<(char8_t c) {
-    //        file.put(c);
-    //        return *this;
-    //    }
-    //    YOfstream& operator<<(const std::u8string_view& str) {
-    //        file.write(reinterpret_cast<const char*>(str.data()), str.size());
-    //        return *this;
-    //    }
-    //    YOfstream& operator<<(const char8_t* str) {
-    //        file.write(reinterpret_cast<const char*>(str), strlen(reinterpret_cast<const char*>(str)));
-    //        return *this;
-    //    }
-    //    inline void close() { file.close(); }
-    //};
+    static constexpr char8_t utf8bom[] = { 0xEF, 0xBB, 0xBF };
+    static constexpr char8_t utf16le[] = { 0xFF, 0xFE };
+
+    static constexpr char16_t utf16FirstWcharMark[3] = { 0xD800, 0xDC00, 0xE000 };
+    static constexpr char8_t utf8FirstCharMark[7] = { 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC };
 public:
     inline explicit YJson() { }
     enum Type { False=0, True=1, Null, Number, String, Array, Object };
@@ -182,10 +131,68 @@ public:
 
     inline std::u8string& getValueString() { return *_value.String; }
     inline const std::u8string& getValueString() const { return *_value.String; }
-    inline int64_t getValueInt() { return static_cast<int64_t>(*_value.Double); }
+    inline int32_t getValueInt() { return static_cast<int32_t>(*_value.Double); }
     inline double& getValueDouble() { return *_value.Double; }
     inline ObjectType& getObject() { return *_value.Object; }
     inline ArrayType& getArray() { return *_value.Array; }
+
+    inline static unsigned char _toHex(unsigned char x)
+    {
+        return  x > 9 ? x + 55 : x + 48;
+    }
+
+    inline static unsigned char _fromHex(unsigned char x)
+    {
+        unsigned char y;
+        if (x >= 'A' && x <= 'Z') y = x - 'A' + 10;
+        else if (x >= 'a' && x <= 'z') y = x - 'a' + 10;
+        else if (x >= '0' && x <= '9') y = x - '0';
+        else throw 0;
+        return y;
+    }
+
+    template <typename _CharT>
+    static std::basic_string<_CharT> pureUrlEncode(const std::basic_string_view<_CharT> str)
+    {
+        std::basic_string<_CharT> ret;
+        ret.reserve(str.size());
+        for (auto i: str)
+        {
+            if (isalnum(static_cast<unsigned char>(i)) || strchr("-_.~", i))
+                ret.push_back(i);
+            // else if (i == ' ')
+            //     ret.push_back('+');
+            else
+            {
+                ret.push_back('%');
+                ret.push_back(_toHex(static_cast<unsigned char>(i) >> 4));
+                ret.push_back(_toHex(static_cast<unsigned char>(i) % 16));
+            }
+        }
+        return ret;
+    }
+
+    template <typename _Ty=std::u8string>
+    static std::u8string pureUrlDecode(const std::u8string& str)
+    {
+        std::u8string ret;
+        ret.reserve(str.size());
+        for (size_t i = 0; i < str.length(); i++)
+        {
+            if (str[i] == '+') ret += ' ';
+            else if (str[i] == '%')
+            {
+                if (i + 2 < str.length()) throw 0;
+                unsigned char high = _fromHex((unsigned char)str[++i]);
+                unsigned char low = _fromHex((unsigned char)str[++i]);
+                ret.push_back(high*16 + low);
+            }
+            else ret.push_back(str[i]);
+        }
+        return ret;
+    }
+
+
     std::u8string urlEncode() const;
     std::u8string urlEncode(const std::u8string_view url) const;
 
@@ -787,19 +794,19 @@ private:
         using namespace std::literals;
         switch (_type) {
         case YJson::Null:
-            pre << u8"null"sv;
+            pre.write(reinterpret_cast<const _Ty*>("null"), 4);
             break;
         case YJson::False:
-            pre << u8"false"sv;
+            pre.write(reinterpret_cast<const _Ty*>("false"), 5);
             break;
         case YJson::True:
-            pre << u8"true"sv;
+            pre.write(reinterpret_cast<const _Ty*>("true"), 4);
             break;
         case YJson::Number:
             printNumber(pre);
             break;
         case YJson::String:
-            printString(pre, *_value.String);
+            printString<_Ty>(pre, *_value.String);
             break;
         case YJson::Array:
             printArray(pre);
@@ -811,17 +818,17 @@ private:
         }
     }
     template<typename _Ty>
-    void printValue(_Ty& pre, int depth) const {
+    void printValue(std::basic_ostream<_Ty>& pre, int depth) const {
         using namespace std::literals;
         switch (_type) {
         case YJson::Null:
-            pre << u8"null"sv;
+            pre.write(reinterpret_cast<const _Ty*>("null"), 4);
             break;
         case YJson::False:
-            pre << u8"false"sv;
+            pre.write(reinterpret_cast<const _Ty*>("false"), 5);
             break;
         case YJson::True:
-            pre << u8"true"sv;
+            pre.write(reinterpret_cast<const _Ty*>("true"), 4);
             break;
         case YJson::Number:
             printNumber(pre);
@@ -846,9 +853,9 @@ private:
             pre.put('0');
         } else if (fabs(round(valuedouble) - valuedouble) <= std::numeric_limits<double>::epsilon()
             &&
-            valuedouble <= static_cast<double>(std::numeric_limits<int64_t>::max())
+            valuedouble <= static_cast<double>(std::numeric_limits<int32_t>::max())
             &&
-            valuedouble >= static_cast<double>(std::numeric_limits<int64_t>::min())
+            valuedouble >= static_cast<double>(std::numeric_limits<int32_t>::min())
             ) {
             char temp[21] = { 0 };
             sprintf(temp, "%.0lf", valuedouble);
@@ -881,7 +888,7 @@ private:
             *ptr2++ = u8'\"';
             std::copy(str.begin(), str.end(), ptr2);
             *(ptr2 += len) = u8'\"';
-            pre << buffer;
+            pre.write(reinterpret_cast<const _Ty*>(buffer.data()), buffer.size());
             return;
         }
         if (str.empty()) {
@@ -919,7 +926,7 @@ private:
             }
         }
         *ptr2 = u8'\"';
-        pre << buffer;
+        pre.write(reinterpret_cast<const _Ty*>(buffer.data()), buffer.size());
     }
     template<typename _Ty>
     void printArray(std::basic_ostream<_Ty>& pre) const {
