@@ -16,6 +16,13 @@
 #include <filesystem>
 #include <memory>
 
+#ifdef max
+#undef max
+#endif
+#ifdef min
+#undef min
+#endif
+
 const char8_t utf8bom[] = { 0xEF, 0xBB, 0xBF };
 const char8_t utf16le[] = { 0xFF, 0xFE };
 
@@ -24,55 +31,57 @@ constexpr char8_t utf8FirstCharMark[7] = { 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0
 
 class YJson;
 
-inline std::ostream& operator<<(std::ostream& out, const std::u8string& str) {
-    return out << std::string_view(reinterpret_cast<const char*>(str.data()), str.size());
-}
-
-inline std::ostream& operator<<(std::ostream& out, const char8_t* str) {
-    return out << reinterpret_cast<const char*>(str);
-}
-
-inline std::ostream& operator<<(std::ostream& out, const std::u8string_view& str) {
-    return out << std::string_view(reinterpret_cast<const char*>(str.data()), str.size());
-}
-
-inline std::ostream& operator<<(std::ostream& out, char8_t str) {
-    out.write(reinterpret_cast<const char*>(&str), 1);
-    return out;
-}
+//inline std::ostream& operator<<(std::ostream& out, const std::u8string& str) {
+//    return out << std::string_view(reinterpret_cast<const char*>(str.data()), str.size());
+//}
+//
+//inline std::ostream& operator<<(std::ostream& out, const char8_t* str) {
+//    return out << reinterpret_cast<const char*>(str);
+//}
+//
+//inline std::ostream& operator<<(std::ostream& out, const std::u8string_view& str) {
+//    return out << std::string_view(reinterpret_cast<const char*>(str.data()), str.size());
+//}
+//
+//inline std::ostream& operator<<(std::ostream& out, char8_t str) {
+//    out.write(reinterpret_cast<const char*>(&str), 1);
+//    return out;
+//}
 
 class YJson final
 {
 private:
-    class YOfstream {
-    private:
-        FILE* file;
-    public:
-        YOfstream(const std::filesystem::path& path)
-            : file(fopen(path.c_str(), "wb"))
-        {}
-        inline bool is_open() const { return file; }
-        inline void write(const char8_t* data, size_t size) {
-            fwrite(data, sizeof(char8_t), size, file);
-        }
-        YOfstream& operator<<(const std::u8string& str) {
-            fwrite(str.data(), sizeof (char8_t), str.size(), file);
-            return *this;
-        }
-        YOfstream& operator<<(char8_t c) {
-            fputc(static_cast<char>(c), file);
-            return *this;
-        }
-        YOfstream& operator<<(const std::u8string_view& str) {
-            fwrite(str.data(), sizeof (char8_t), str.size(), file);
-            return *this;
-        }
-        YOfstream& operator<<(const char8_t* str) {
-            fwrite(str, sizeof(char8_t), strlen(reinterpret_cast<const char*>(str)), file);
-            return *this;
-        }
-        inline void close() const { fclose(file); }
-    };
+    //class YOfstream {
+    //private:
+    //    std::ofstream file;
+    //public:
+    //    YOfstream(const std::filesystem::path& path)
+    //        : file(path, std::ios::out | std::ios::binary)
+    //    {
+    //        
+    //    }
+    //    inline bool is_open() const { return file.is_open(); }
+    //    inline void write(const char8_t* data, size_t size) {
+    //        file.write(reinterpret_cast<const char*>(data), size);
+    //    }
+    //    YOfstream& operator<<(const std::u8string& str) {
+    //        file.write(reinterpret_cast<const char*>(str.data()), str.size());
+    //        return *this;
+    //    }
+    //    YOfstream& operator<<(char8_t c) {
+    //        file.put(c);
+    //        return *this;
+    //    }
+    //    YOfstream& operator<<(const std::u8string_view& str) {
+    //        file.write(reinterpret_cast<const char*>(str.data()), str.size());
+    //        return *this;
+    //    }
+    //    YOfstream& operator<<(const char8_t* str) {
+    //        file.write(reinterpret_cast<const char*>(str), strlen(reinterpret_cast<const char*>(str)));
+    //        return *this;
+    //    }
+    //    inline void close() { file.close(); }
+    //};
 public:
     inline explicit YJson() { }
     enum Type { False=0, True=1, Null, Number, String, Array, Object };
@@ -173,21 +182,28 @@ public:
 
     inline std::u8string& getValueString() { return *_value.String; }
     inline const std::u8string& getValueString() const { return *_value.String; }
-    inline int getValueInt() { return *_value.Double; }
+    inline int64_t getValueInt() { return static_cast<int64_t>(*_value.Double); }
     inline double& getValueDouble() { return *_value.Double; }
     inline ObjectType& getObject() { return *_value.Object; }
     inline ArrayType& getArray() { return *_value.Array; }
     std::u8string urlEncode() const;
     std::u8string urlEncode(const std::u8string_view url) const;
 
-    inline int sizeA() const { return _value.Array->size();}
-    inline int sizeO() const { return _value.Object->size(); }
+    inline size_t sizeA() const { return _value.Array->size();}
+    inline size_t sizeO() const { return _value.Object->size(); }
 
+#ifdef _WIN32
+    static inline std::u8string numberToU8String(unsigned long val) {
+        std::string temp = std::to_string(val);
+        return std::u8string(temp.begin(), temp.end());
+    }
+#else
     static inline std::u8string numberToU8String(unsigned long val) {
         std::u8string __str(std::__detail::__to_chars_len(val), '\0');
         std::__detail::__to_chars_10_impl(reinterpret_cast<char*>(&__str[0]), __str.size(), val);
         return __str;
     }
+#endif
 
     inline std::u8string toU8String(bool fmt=false) const {
         std::basic_ostringstream<char8_t> result;
@@ -200,12 +216,12 @@ public:
     }
 
     inline bool toFile(const std::filesystem::path& file_name, bool fmt=true, const Encode& encode=UTF8) {
-        YOfstream result(file_name);
+        std::ofstream result(file_name, std::ios::out | std::ios::binary);
         if (!result.is_open()) {
             return false;
         }
         if (encode == UTF8BOM) {
-            result.write(utf8bom, 3);
+            result.write(reinterpret_cast<const char*>(utf8bom), 3);
         }
         if (fmt) {
             printValue(result, 0);
@@ -731,7 +747,7 @@ private:
 
         if (*first++ == ']')
             return first;
-        throw std::u8string(u8"未匹配到列表结尾！");
+        throw std::u8string(u8"Cant find the ']'!");
     }
 
     template<typename StrIterator>
@@ -767,7 +783,7 @@ private:
     }
 
     template<typename _Ty>
-    void printValue(_Ty& pre) const {
+    void printValue(std::basic_ostream<_Ty>& pre) const {
         using namespace std::literals;
         switch (_type) {
         case YJson::Null:
@@ -824,33 +840,39 @@ private:
         }
     }
     template<typename _Ty>
-    void printNumber(_Ty& pre) const {
+    void printNumber(std::basic_ostream<_Ty>& pre) const {
         const double valuedouble = *_value.Double;
         if (valuedouble == 0) {
-            pre << u8'0';
-        } else if (fabs(round(valuedouble) - valuedouble) <= std::numeric_limits<double>::epsilon() && valuedouble <= (double)std::numeric_limits<int>::max() && valuedouble >= (double)std::numeric_limits<int>::min()) {
+            pre.put('0');
+        } else if (fabs(round(valuedouble) - valuedouble) <= std::numeric_limits<double>::epsilon()
+            &&
+            valuedouble <= static_cast<double>(std::numeric_limits<int64_t>::max())
+            &&
+            valuedouble >= static_cast<double>(std::numeric_limits<int64_t>::min())
+            ) {
             char temp[21] = { 0 };
             sprintf(temp, "%.0lf", valuedouble);
-            pre << (const char8_t*)temp;
+            pre.write(reinterpret_cast<const _Ty*>(temp), strlen(temp));
         } else {
             char temp[64] = {0};
-            if (fabs(floor(valuedouble)-valuedouble)<=std::numeric_limits<double>::epsilon() && fabs(valuedouble)<1.0e60)
+            if (fabs(floor(valuedouble)-valuedouble)<=std::numeric_limits<double>::epsilon()
+                && fabs(valuedouble) < 1.0e60)
                 sprintf(temp,"%.0f",valuedouble);
-            else if (fabs(valuedouble)<1.0e-6 || fabs(valuedouble)>1.0e9)
+            else if (fabs(valuedouble) < 1.0e-6 || fabs(valuedouble)>1.0e9)
                 sprintf(temp,"%e",valuedouble);
             else
                 sprintf(temp,"%f",valuedouble);
-            pre << (const char8_t*)temp;
+            pre.write(reinterpret_cast<const _Ty*>(temp), strlen(temp));
         }
     }
     template<typename _Ty>
-    static void printString(_Ty& pre, const std::u8string_view str) {
+    static void printString(std::basic_ostream<_Ty>& pre, const std::u8string_view str) {
         std::u8string buffer;
-        const char8_t* ptr;
+        std::u8string_view::iterator ptr;
         std::u8string::iterator ptr2;
         size_t len = 0, flag = 0; unsigned char token;
         
-        for (ptr = str.begin(); *ptr; ptr++)
+        for (ptr = str.begin(); *ptr; ++ptr)
             flag |= ((*ptr > 0 && *ptr < 32) || (*ptr == '\"') || (*ptr == '\\')) ? 1 : 0;
         if (!flag) {
             len = ptr - str.begin();
@@ -863,7 +885,7 @@ private:
             return;
         }
         if (str.empty()) {
-            pre << u8"\"\"" ;
+            pre.write(reinterpret_cast<const _Ty*>("\"\""), 2);
             return;
         }
         ptr = str.begin();
@@ -872,13 +894,13 @@ private:
                 len++;
             else if (token < 32)
                 len += 5;
-            ptr++;
+            ++ptr;
         }
 
         buffer.resize(len + 2);
         ptr2 = buffer.begin();
         ptr = str.begin();
-        *ptr2++ = '\"';
+        *ptr2++ = u8'\"';
         while (*ptr) {
             if ((unsigned char)*ptr > 31 && *ptr != '\"' && *ptr != '\\') *ptr2++ = *ptr++;
             else {
@@ -892,7 +914,7 @@ private:
                 case '\n':    *ptr2++ = 'n';    break;
                 case '\r':    *ptr2++ = 'r';    break;
                 case '\t':    *ptr2++ = 't';    break;
-                default: printf((const char*)ptr2.base(), "u%04x",token); ptr2+=5;    break;
+                default: printf((const char*)&(*ptr2), "u%04x", token); ptr2 += 5;    break;
                 }
             }
         }
@@ -900,82 +922,86 @@ private:
         pre << buffer;
     }
     template<typename _Ty>
-    void printArray(_Ty& pre) const {
+    void printArray(std::basic_ostream<_Ty>& pre) const {
         using namespace std::literals;
         if (_value.Array->empty()) {
-            pre << u8"[]"sv;
+            pre.write(reinterpret_cast<const _Ty*>("[]"), 2);
             return;
         }
-        pre << u8'[';
+        pre.put('[');
         auto i = _value.Array->begin(), j = _value.Array->end();
         for (--j; i != j; ++i) {
             i->printValue(pre);
-            pre << u8',';
+            pre.put(',');
         }
         i->printValue(pre);
-        pre << u8']';
+        pre.put(']');
     }
     template<typename _Ty>
-    void printArray(_Ty& pre, int depth) const {
+    void printArray(std::basic_ostream<_Ty>& pre, int depth) const {
         using namespace std::literals;
         if (_value.Array->empty()) {
-            pre << u8"[]";
+            pre.write(reinterpret_cast<const _Ty*>("[]"), 2);
             return;
         }
         ++depth;
-        pre << u8"[\n"sv;
+        pre.write(reinterpret_cast<const _Ty*>("[\n"), 2);
         auto i = _value.Array->begin(), j = _value.Array->end();
         for (--j; i!=j; ++i) {
-            pre << std::u8string(depth<<2, u8' ');
+            pre << std::basic_string<_Ty>(depth<<2, u8' ');
             i->printValue(pre, depth);
-            pre << u8",\n"sv;
+            pre.write(reinterpret_cast<const _Ty*>(",\n"), 2);
         }
-        pre << std::u8string(depth<<2, ' ');
+        pre << std::basic_string<_Ty>(depth<<2, ' ');
         i->printValue(pre, depth);
-        pre << u8'\n' << std::u8string(--depth<<2, u8' ') << u8']';
+        pre.put('\n');
+        pre << std::basic_string<_Ty>(--depth << 2, ' ');
+        pre.put(']');
     }
     template<typename _Ty>
-    void printObject(_Ty& pre) const {
+    void printObject(std::basic_ostream<_Ty>& pre) const {
         using namespace std::literals;
         if (_value.Object->empty()) {
-            pre << u8"{}"sv;
+            pre.write(reinterpret_cast<const _Ty*>("{}"), 2);
             return;
         }
-        pre << u8'{';
+        pre.put('{');
         auto i = _value.Object->begin(), j = _value.Object->end();
         for (--j; j!=i; ++i) {
             printString(pre, i->first);
-            pre << u8':';
+            pre.put(':');
             i->second.printValue(pre);
-            pre << u8',';
+            pre.put(',');
         }
         printString(pre, i->first);
-        pre << u8':';
+        pre.put(':');
         i->second.printValue(pre);
-        pre << u8'}';
+        pre.put('}');
     }
     template<typename _Ty>
-    void printObject(_Ty& pre, int depth) const {
+    void printObject(std::basic_ostream<_Ty>& pre, int depth) const {
         using namespace std::literals;
         if (_value.Object->empty()) {
-            pre << u8"{}"sv;
+            pre.write(reinterpret_cast<const _Ty*>("{}"), 2);
             return;
         }
         ++depth;
-        pre << u8"{\n"sv;
+        pre.write(reinterpret_cast<const _Ty*>("{\n"), 2);
         auto i=_value.Object->begin(), j=_value.Object->end();
         for (--j; i!=j; ++i) {
-            pre << std::u8string(depth<<2, ' ');
+            pre << std::basic_string<_Ty>(depth<<2, ' ');
             printString(pre, i->first);
-            pre << u8": "sv;
+            pre.write(reinterpret_cast<const _Ty*>(": "), 2);
             i->second.printValue(pre, depth);
-            pre << u8",\n"sv;
+            pre.write(reinterpret_cast<const _Ty*>(",\n"), 2);
         }
-        pre << std::u8string(depth<<2, ' ');
+        pre << std::basic_string<_Ty>(depth << 2, ' ');
         printString(pre, i->first);
-        pre << u8": "sv;
+        pre.write(reinterpret_cast<const _Ty*>(": "), 2);
         i->second.printValue(pre, depth);
-        pre << u8'\n' << std::u8string(--depth<<2, ' ') << u8'}';
+        pre.put('\n');
+        pre << std::basic_string<_Ty>(depth << 2, ' ');
+        pre.put('}');
     }
 
     inline void clearData() {

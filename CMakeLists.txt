@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.14)
 cmake_policy(SET CMP0074 NEW)
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
+
+if(WIN32)
+    add_compile_options("/std:c++latest")
+elseif(UNIX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
+endif()
 
 # if (UNIX)
 #     SET(CMAKE_C_COMPILER /usr/bin/clang)
@@ -16,9 +21,6 @@ set(PROJECT_BINARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build)
 message(${PROJECT_BINARY_DIR})
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-if (MSVC)
-    add_compile_options("/utf-8")
-endif ()
 
 add_library(yjson STATIC
     yjson.cpp

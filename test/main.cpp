@@ -60,7 +60,7 @@ void read() {
     array1->second.append<YJson::Type>(YJson::Null);
     array1->second.append<YJson::Type>(YJson::Array);
     array1->second.append<YJson::Type>(YJson::Object);
-    std::cout << u8"Array append: \n" << array1->second
+    std::cout << "Array append: \n" << array1->second
         << "\n----------- Find test ---------\n";
     auto number1 = json.find(u8"number1");
     if (number1 != json.endO()) {
@@ -103,7 +103,7 @@ void read() {
     std::cout << "----------- Emun test -------------\n";
     int s = 1;
     for (const auto&i: json.getObject()) {
-        std::cout << s++ << u8" is: " << i.second;
+        std::cout << s++ << " is: " << i.second;
     }
 }
 
