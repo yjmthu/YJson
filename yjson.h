@@ -394,6 +394,17 @@ public:
         _value.String = new std::u8string(val.u8string());
     }
 
+    template<typename _Ty>
+    inline void setText(const _Ty& utf8Array) {
+        if (_type != YJson::String) {
+            clearData();
+            _type = YJson::String;
+        } else {
+            delete _value.String;
+        }
+        _value.String = new std::u8string(utf8Array.begin(), utf8Array.end());
+    }
+
     inline void setValue(double val) {
         clearData();
         _type = YJson::Number;
