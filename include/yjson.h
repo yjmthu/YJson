@@ -1007,7 +1007,7 @@ private:
         pre.write(reinterpret_cast<const _Ty*>(": "), 2);
         i->second.printValue(pre, depth);
         pre.put('\n');
-        pre << std::basic_string<_Ty>(depth << 2, ' ');
+        pre << std::basic_string<_Ty>(--depth << 2, ' ');
         pre.put('}');
     }
 
