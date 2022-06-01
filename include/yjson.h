@@ -45,10 +45,10 @@ private:
     // typedef std::u8string_view::const_iterator StrIterator;
 
     template<typename StrIterator>
-    static inline StrIterator StrSkip(StrIterator content) {
-        while (*content && static_cast<char8_t>(*content) <= 32)
-            content++;
-        return content;
+    static inline StrIterator StrSkip(StrIterator first, StrIterator last) {
+        while (first < last && static_cast<char8_t>(*first) <= 32)
+            first++;
+        return first;
     }
 public:
     inline YJson(Type type): _type(type) {
@@ -98,13 +98,13 @@ public:
 
     static std::shared_ptr<YJson> Parse(const std::u8string_view str) {
         YJson* result = new YJson(YJson::Null);
-        result->parseValue(StrSkip(str.begin()), str.end());
+        result->parseValue(StrSkip(str.begin(), str.end()), str.end());
         return std::shared_ptr<YJson>(result);
     }
 
     static std::shared_ptr<YJson> Parse(const std::string_view str) {
         YJson* result = new YJson(YJson::Null);
-        result->parseValue(StrSkip(str.begin()), str.end());
+        result->parseValue(StrSkip(str.begin(), str.end()), str.end());
         return std::shared_ptr<YJson>(result);
     }
 
@@ -556,7 +556,7 @@ public:
 
     template<typename _Ty>
     void strictParse(const _Ty& str) {
-        auto temp = StrSkip(str.begin());
+        auto temp = StrSkip(str.begin(), str.end());
         switch (*temp) {
             case u8'{':
                 parseObject(temp, str.end());
@@ -571,11 +571,11 @@ public:
     }
 
     inline void parse(std::u8string_view str) {
-        parseValue(StrSkip(str.begin()), str.end());
+        parseValue(StrSkip(str.begin(), str.end()), str.end());
     }
 
     inline void parse(std::string_view str) {
-        parseValue(StrSkip(str.begin()), str.end());
+        parseValue(StrSkip(str.begin(), str.end()), str.end());
     }
 
     friend std::ostream& operator<<(std::ofstream& out, const YJson& outJson);
@@ -683,11 +683,11 @@ private:
         if (*first != '\"') {
             throw std::runtime_error("Invalid String.");
         }
-        while (*ptr!='\"' && ptr != last && ++len) if (*ptr++ == '\\') ++ptr;    /* Skip escaped quotes. */
+        while (ptr != last && *ptr!='\"' && ++len) if (*ptr++ == '\\') ++ptr;    /* Skip escaped quotes. */
         des.resize(len);
         ptr = first + 1;
         ptr2 = des.begin();
-        while (*ptr != '\"' && *ptr) {
+        while (ptr != last  && *ptr != '\"') {
             if (*ptr != '\\') *ptr2++ = *ptr++;
             else
             {
@@ -726,7 +726,7 @@ private:
                 ptr++;
             }
         }
-        *ptr2 = 0; ++first;
+        ++first;
         while (*first != '\"' && *first) if (*first++ == '\\') ++first;
         return ++first;
     }
@@ -735,20 +735,20 @@ private:
     StrIterator parseArray(StrIterator first, StrIterator last) {
         _type = YJson::Array;
         auto& array = *(_value.Array = new ArrayType);
-        first = StrSkip(++first);
+        first = StrSkip(++first, last);
         if (*first==']') {
             return first + 1;
         }
         array.emplace_back();
-        first = StrSkip(array.back().parseValue(StrSkip(first), last));
+        first = StrSkip(array.back().parseValue(StrSkip(first, last), last), last);
         if (first >= last) return last;
 
         while (*first==',') {
-            if (*StrSkip(first+1) == ']') {
-                return StrSkip(first+1);
+            if (*StrSkip(first+1, last) == ']') {
+                return StrSkip(first+1, last);
             }
             array.emplace_back();
-            first = StrSkip(array.back().parseValue(StrSkip(first + 1), last));
+            first = StrSkip(array.back().parseValue(StrSkip(first + 1, last), last), last);
             if (first >= last) return last;
         }
 
@@ -761,25 +761,25 @@ private:
     StrIterator parseObject(StrIterator first, StrIterator last) {
         _type = YJson::Object;
         ObjectType& object = *(_value.Object = new ObjectType);
-        first = StrSkip(++first);
+        first = StrSkip(++first, last);
         if (*first == '}') return first + 1;
         object.emplace_back();
-        first = StrSkip(parseString(object.back().first, StrSkip(first), last));
+        first = StrSkip(parseString(object.back().first, StrSkip(first, last), last), last);
         if (first >= last) return last;
         if (*first != ':') {
             throw std::runtime_error("Invalid Object.");
         }
-        first = StrSkip(object.back().second.parseValue(StrSkip(first + 1), last));
+        first = StrSkip(object.back().second.parseValue(StrSkip(first + 1, last), last), last);
         while (*first==',') {
-            if (*StrSkip(first+1)=='}') {
-                return StrSkip(first+1);
+            if (*StrSkip(first+1, last)=='}') {
+                return StrSkip(first+1, last);
             }
             object.emplace_back();
-            first = StrSkip(parseString(object.back().first, StrSkip(first+1), last));
+            first = StrSkip(parseString(object.back().first, StrSkip(first+1, last), last), last);
             if (*first != ':') {
                 throw std::runtime_error("Invalid Object.");
             }
-            first = StrSkip(object.back().second.parseValue(StrSkip(first+1), last));
+            first = StrSkip(object.back().second.parseValue(StrSkip(first+1, last), last), last);
             if (!(*first)) return last;
         }
         
@@ -864,7 +864,7 @@ private:
             char temp[64] = {0};
             if (fabs(floor(valuedouble)-valuedouble)<=std::numeric_limits<double>::epsilon()
                 && fabs(valuedouble) < 1.0e60)
-                sprintf(temp,"%.0f",valuedouble);
+                sprintf(temp,"%.0f", valuedouble);
             else if (fabs(valuedouble) < 1.0e-6 || fabs(valuedouble)>1.0e9)
                 sprintf(temp,"%e",valuedouble);
             else
@@ -877,10 +877,11 @@ private:
         std::u8string buffer;
         std::u8string_view::iterator ptr;
         std::u8string::iterator ptr2;
-        size_t len = 0, flag = 0; unsigned char token;
+        size_t len = 0, flag = 0;
+        char8_t token;
         
-        for (ptr = str.begin(); *ptr; ++ptr)
-            flag |= ((*ptr > 0 && *ptr < 32) || (*ptr == '\"') || (*ptr == '\\')) ? 1 : 0;
+        for (ptr = str.begin(); ptr != str.end(); ++ptr)
+            flag |= ((*ptr > 0 && *ptr < 32) || (*ptr == u8'\"') || (*ptr == u8'\\')) ? 1 : 0;
         if (!flag) {
             len = ptr - str.begin();
             buffer.resize(len + 2);
@@ -896,7 +897,7 @@ private:
             return;
         }
         ptr = str.begin();
-        while ((token = (unsigned char)*ptr) && ++len) {
+        while ((ptr != str.end()) && (token = *ptr) && ++len) {
             if (strchr("\"\\\b\f\n\r\t", token))
                 len++;
             else if (token < 32)
@@ -904,12 +905,12 @@ private:
             ++ptr;
         }
 
-        buffer.resize(len + 2);
+        buffer.resize(len + 3);
         ptr2 = buffer.begin();
         ptr = str.begin();
         *ptr2++ = u8'\"';
-        while (*ptr) {
-            if ((unsigned char)*ptr > 31 && *ptr != '\"' && *ptr != '\\') *ptr2++ = *ptr++;
+        while (ptr != str.end()) {
+            if (*ptr > 31 && *ptr != '\"' && *ptr != '\\') *ptr2++ = *ptr++;
             else {
                 *ptr2++='\\';
                 switch (token = (unsigned char)*ptr++)
@@ -996,7 +997,7 @@ private:
         pre.write(reinterpret_cast<const _Ty*>("{\n"), 2);
         auto i=_value.Object->begin(), j=_value.Object->end();
         for (--j; i!=j; ++i) {
-            pre << std::basic_string<_Ty>(depth<<2, ' ');
+            pre << std::basic_string<_Ty>(depth << 2, ' ');
             printString(pre, i->first);
             pre.write(reinterpret_cast<const _Ty*>(": "), 2);
             i->second.printValue(pre, depth);
