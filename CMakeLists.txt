@@ -1,14 +1,13 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(CMAKE_CXX_STANDARD 20)
-
-if(MSVC)
-    add_compile_options("/std:c++latest")
-endif()
+if (MSVC)
+    add_definitions(-DUNICODE -D_UNICODE -D_CRT_SECURE_NO_WARNINGS=1)
+    add_compile_options("/utf-8")
+    # add_compile_options("/std:c++latest")
+endif ()
 
 project(YJson)
-
-# SET(CMAKE_BUILD_TYPE "Debug")
 
 include_directories(include)
 
