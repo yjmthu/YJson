@@ -96,16 +96,13 @@ public:
         }
     }
 
-    static std::shared_ptr<YJson> Parse(const std::u8string_view str) {
-        YJson* result = new YJson(YJson::Null);
-        result->parseValue(StrSkip(str.begin(), str.end()), str.end());
-        return std::shared_ptr<YJson>(result);
+    template<typename _Iterator>
+    inline YJson(_Iterator first, _Iterator last) {
+        parseValue(StrSkip(first, last), last);
     }
 
-    static std::shared_ptr<YJson> Parse(const std::string_view str) {
-        YJson* result = new YJson(YJson::Null);
-        result->parseValue(StrSkip(str.begin(), str.end()), str.end());
-        return std::shared_ptr<YJson>(result);
+    inline YJson(const char8_t* first, size_t size) {
+        parseValue(StrSkip(first, first+size), first+size);
     }
 
     typedef std::initializer_list<std::pair<const std::u8string_view, YJson>> O;
@@ -385,21 +382,34 @@ public:
     bool operator==(const char8_t* str) const { return _type == YJson::String && *_value.String == str; }
 
     inline void setText(const std::u8string_view val) {
-        clearData();
-        _type = YJson::String;
-        _value.String = new std::u8string(val);
+        if (_type != YJson::String) {
+            clearData();
+            _type = YJson::String;
+            _value.String = new std::u8string(val);
+        }
+        else {
+            _value.String->assign(val);
+        }
     }
 
     inline void setText(const char8_t* val) {
-        clearData();
-        _type = YJson::String;
-        _value.String = new std::u8string(val);
+        if (_type != YJson::String) {
+            clearData();
+            _type = YJson::String;
+            _value.String = new std::u8string(val);
+        } else {
+            _value.String->assign(val);
+        }
     }
 
     inline void setText(const std::u8string& val) {
-        clearData();
-        _type = YJson::String;
-        _value.String = new std::u8string(val);
+        if (_type != YJson::String) {
+            clearData();
+            _type = YJson::String;
+            _value.String = new std::u8string(val);
+        } else {
+            _value.String->assign(val);
+        }
     }
 
     inline void setText(std::u8string&& val) {
@@ -411,10 +421,26 @@ public:
         _value.String->swap(val);
     }
 
+    template <typename _Iterator>
+    inline void setText(_Iterator first, _Iterator last) {
+        if (_type != YJson::String) {
+            clearData();
+            _type = YJson::String;
+            _value.String = new std::u8string(first, last);
+        } else {
+            _value.String->assign(first, last);
+        }
+    }
+
     inline void setText(const std::filesystem::path& val) {
-        clearData();
-        _type = YJson::String;
-        _value.String = new std::u8string(val.u8string());
+        if (_type != YJson::String) {
+            clearData();
+            _type = YJson::String;
+            _value.String = new std::u8string(val.u8string());
+        }
+        else {
+            _value.String->assign(val.u8string());
+        }
     }
 
     template<typename _Ty>
@@ -553,30 +579,6 @@ public:
     inline ObjectIterator beginO() { return _value.Object->begin(); }
     inline ArrayIterator endA() { return _value.Array->end(); }
     inline ObjectIterator endO() { return _value.Object->end(); }
-
-    template<typename _Ty>
-    void strictParse(const _Ty& str) {
-        auto temp = StrSkip(str.begin(), str.end());
-        switch (*temp) {
-            case u8'{':
-                parseObject(temp, str.end());
-                break;
-            case u8'[':
-                parseArray(temp, str.end());
-                break;
-            default:
-                throw std::errc::illegal_byte_sequence;
-                break;
-        }
-    }
-
-    inline void parse(std::u8string_view str) {
-        parseValue(StrSkip(str.begin(), str.end()), str.end());
-    }
-
-    inline void parse(std::string_view str) {
-        parseValue(StrSkip(str.begin(), str.end()), str.end());
-    }
 
     friend std::ostream& operator<<(std::ofstream& out, const YJson& outJson);
     friend std::ostream& operator<<(std::ostream& out, const YJson& outJson);

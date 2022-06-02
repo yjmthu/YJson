@@ -26,14 +26,14 @@ YJson::YJson(const std::filesystem::path& path, YJson::Encode encode)
         file.seekg(3, std::ios::beg);
         file.read(reinterpret_cast<char*>(&json_string[0]), size - 3);
         file.close();
-        strictParse(json_string);
+        parseValue(json_string.begin(), json_string.end());
         break;
     } case YJson::UTF8: {
         std::u8string json_string;
         json_string.resize(size);
         file.read(reinterpret_cast<char*>(&json_string[0]), size);
         file.close();
-        strictParse(json_string);
+        parseValue(json_string.begin(), json_string.end());
         break;
     } default:
         throw std::runtime_error("Unknown file type.");
