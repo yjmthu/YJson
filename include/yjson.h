@@ -164,6 +164,24 @@ class YJson final {
     return y;
   }
 
+  inline void popBackA() {
+    _value.Array->pop_back();
+  }
+
+  inline void popBackO() {
+    _value.Object->pop_back();
+  }
+
+  template <typename _Iterator>
+  void assignA(_Iterator first, _Iterator last) {
+    if (_type != YJson::Array) {
+      clearData();
+      _type = YJson::Array;
+      _value.Array = new ArrayType;
+    }
+    _value.Array->assign(first, last);
+  }
+
   template <typename _CharT>
   static std::basic_string<_CharT> pureUrlEncode(
       const std::basic_string_view<_CharT> str) {
@@ -280,6 +298,20 @@ class YJson final {
   }
 
   inline YJson& operator=(const std::u8string_view str) {
+    clearData();
+    _type = YJson::String;
+    _value.String = new std::u8string(str);
+    return *this;
+  }
+
+  inline YJson& operator=(std::u8string&& str) {
+    clearData();
+    _type = YJson::String;
+    _value.String = new std::u8string(std::move(str));
+    return *this;
+  }
+
+  inline YJson& operator=(const std::u8string& str) {
     clearData();
     _type = YJson::String;
     _value.String = new std::u8string(str);
