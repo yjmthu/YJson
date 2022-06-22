@@ -164,13 +164,9 @@ class YJson final {
     return y;
   }
 
-  inline void popBackA() {
-    _value.Array->pop_back();
-  }
+  inline void popBackA() { _value.Array->pop_back(); }
 
-  inline void popBackO() {
-    _value.Object->pop_back();
-  }
+  inline void popBackO() { _value.Object->pop_back(); }
 
   template <typename _Iterator>
   void assignA(_Iterator first, _Iterator last) {
