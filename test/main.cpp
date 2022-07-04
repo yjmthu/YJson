@@ -93,8 +93,10 @@ void read() {
   auto Object2 = json.append(YJson::Object, u8"object2");
   std::cout << "Object2 type " << (int)Object2->second.getType() << std::endl;
   for (int i = 0; i < 10; ++i) {
-    Object1->second.append(i, YJson::numberToU8String(i));
-    Object2->second.append(i + 10, YJson::numberToU8String(i + 10));
+    std::string temp = std::to_string(i);
+    Object1->second.append(i, std::u8string(temp.begin(), temp.end()));
+    temp = std::to_string(i+10);
+    Object2->second.append(i + 10, std::u8string(temp.begin(), temp.end()));
   }
   std::cout << "Form js is: \n" << json << std::endl;
   YJson::swap(Object1->second, Object2->second);

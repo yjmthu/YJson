@@ -181,9 +181,10 @@ class YJson final {
   template <typename _CharT>
   static std::basic_string<_CharT> pureUrlEncode(
       const std::basic_string_view<_CharT> str) {
+    std::basic_string_view<_CharT> str_view(str.begin(), str.begin()+str.length());
     std::basic_string<_CharT> ret;
-    ret.reserve(str.size());
-    for (auto i : str) {
+    ret.reserve(str_view.size());
+    for (auto i : str_view) {
       if (isalnum(static_cast<unsigned char>(i)) || strchr("-_.~", i))
         ret.push_back(i);
       // else if (i == ' ')
@@ -199,8 +200,8 @@ class YJson final {
 
   template <typename _Ty = std::u8string>
   static std::u8string pureUrlDecode(const std::u8string& str) {
-    std::u8string ret;
-    ret.reserve(str.size());
+    std::u8string_view str_view(str.begin(), str.begin()+str.length());
+    std::u8string ret(str_view.size(), 0);
     for (size_t i = 0; i < str.length(); i++) {
       if (str[i] == '+')
         ret += ' ';
@@ -220,20 +221,6 @@ class YJson final {
 
   inline size_t sizeA() const { return _value.Array->size(); }
   inline size_t sizeO() const { return _value.Object->size(); }
-
-#ifdef _WIN32
-  static inline std::u8string numberToU8String(unsigned long val) {
-    std::string temp = std::to_string(val);
-    return std::u8string(temp.begin(), temp.end());
-  }
-#else
-  static inline std::u8string numberToU8String(unsigned long val) {
-    std::u8string __str(std::__detail::__to_chars_len(val), '\0');
-    std::__detail::__to_chars_10_impl(reinterpret_cast<char*>(&__str[0]),
-                                      __str.size(), val);
-    return __str;
-  }
-#endif
 
   inline std::u8string toU8String(bool fmt = false) const {
     std::basic_ostringstream<char8_t> result;
@@ -1000,7 +987,7 @@ class YJson final {
       *ptr2++ = u8'\"';
       std::copy(str.begin(), str.end(), ptr2);
       *(ptr2 += len) = u8'\"';
-      pre.write(reinterpret_cast<const _Ty*>(buffer.data()), buffer.size());
+      pre.write(reinterpret_cast<const _Ty*>(buffer.data()), buffer.length());
       return;
     }
     if (str.empty()) {
@@ -1055,7 +1042,7 @@ class YJson final {
       }
     }
     *ptr2 = u8'\"';
-    pre.write(reinterpret_cast<const _Ty*>(buffer.data()), buffer.size());
+    pre.write(reinterpret_cast<const _Ty*>(buffer.data()), buffer.length());
   }
   template <typename _Ty>
   void printArray(std::basic_ostream<_Ty>& pre) const {
