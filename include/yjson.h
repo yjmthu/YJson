@@ -222,7 +222,7 @@ class YJson final {
   inline size_t sizeA() const { return _value.Array->size(); }
   inline size_t sizeO() const { return _value.Object->size(); }
 
-  inline std::u8string toU8String(bool fmt = false) const {
+  inline std::u8string toString(bool fmt = false) const {
     std::basic_ostringstream<char8_t> result;
     if (fmt) {
       printValue(result, 0);
