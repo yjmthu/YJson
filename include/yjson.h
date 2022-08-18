@@ -246,15 +246,15 @@ class YJson final
         ret.reserve(str_view.size());
         for (auto i : str_view)
         {
-            if (isalnum(static_cast<unsigned char>(i)) || strchr("-_.~", i))
+            if (isalnum(static_cast<char8_t>(i)) || strchr("-_.~", i))
                 ret.push_back(i);
             // else if (i == ' ')
             //     ret.push_back('+');
             else
             {
                 ret.push_back('%');
-                ret.push_back(_toHex(static_cast<unsigned char>(i) >> 4));
-                ret.push_back(_toHex(static_cast<unsigned char>(i) % 16));
+                ret.push_back(_toHex(static_cast<char8_t>(i) >> 4));
+                ret.push_back(_toHex(static_cast<char8_t>(i) % 16));
             }
         }
         return ret;
@@ -1092,7 +1092,7 @@ class YJson final
 
         if (*first++ == ']')
             return first;
-        throw std::u8string(u8"Cant find the ']'!");
+        throw std::u8string(u8"Can't find the ']'!");
     }
 
     template <typename StrIterator> StrIterator parseObject(StrIterator first, StrIterator last)
@@ -1161,7 +1161,8 @@ class YJson final
         case YJson::Object:
             return printObject(pre);
         default:
-            throw std::runtime_error("Unknown YJson Type.");
+            std::cerr << "yjson: unknown type to print.\n";
+            return;
         }
     }
     template <typename _Ty> void printValue(_Ty &pre, int depth) const
@@ -1225,47 +1226,30 @@ class YJson final
     template <typename _Ty> static void printString(_Ty &pre, const std::u8string_view str)
     {
         using namespace std::literals;
-        std::u8string_view::iterator ptr;
-        size_t flag = 0;
-        char8_t token;
 
-        for (ptr = str.begin(); ptr != str.end(); ++ptr)
-            flag |= ((*ptr > 0 && *ptr < 32) || (*ptr == u8'\"') || (*ptr == u8'\\')) ? 1 : 0;
-        if (!flag)
+        pre.put('\"');
+        if (str.empty())
         {
             pre.put('\"');
+            return;
+        }
+
+        constexpr auto cmp = [](char8_t c)->bool{ return c < 32 || c == u8'\"' || c == u8'\\'; };
+
+        if (std::find_if(str.begin(), str.end(), cmp) == str.end())
+        {
             pre.write(reinterpret_cast<const char*>(str.data()), str.size());
             pre.put('\"');
             return;
         }
-        if (str.empty())
-        {
-            pre.write("\"\"", 2);
-            return;
-        }
-        ptr = str.begin();
-        // while ((ptr != str.end()) && (token = *ptr) && ++len)
-        // {
-        //     if ("\"\\\b\f\n\r\t"sv.find(token) != std::string_view::npos)
-        //         len++;
-        //     else if (token < 0x20)
-        //         len += 5;
-        //     ++ptr;
-        // }
 
-        ptr = str.begin();
         char buffer[6];
-        pre.put('\"');
-        while (ptr != str.end())
+        for (const auto c: str)
         {
-            if (*ptr > 31 && *ptr != '\"' && *ptr != '\\')
-                // *ptr2++ = *ptr++;
-                pre.put(*ptr++);
-            else
+            if (cmp(c))
             {
-                // *ptr2++ = '\\';
                 pre.put('\\');
-                switch (token = *ptr++)
+                switch (c)
                 {
                 case '\\':
                     pre.put('\\');
@@ -1289,10 +1273,12 @@ class YJson final
                     pre.put('t');
                     break;
                 default:
-                    printf(buffer, "u%04x", token);
+                    printf(buffer, "u%04x", c);
                     pre.write(buffer, 5);
                     break;
                 }
+            } else {
+                pre.put(c);
             }
         }
         pre.put('\"');

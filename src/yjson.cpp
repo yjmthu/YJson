@@ -50,7 +50,8 @@ std::u8string YJson::urlEncode() const
     std::ostringstream param;
     for (const auto &[key, value] : *_value.Object)
     {
-        param << key << '=';
+        param.write(reinterpret_cast<const char*>(key.data()), key.size());
+        param.put('=');
         switch (value._type)
         {
         case YJson::Number:
@@ -63,16 +64,16 @@ std::u8string YJson::urlEncode() const
             break;
         }
         case YJson::True:
-            param << "true"sv;
+            param.write("true", 4);
             break;
         case YJson::False:
-            param << "false"sv;
+            param.write("false", 5);
             break;
         case YJson::Null:
         default:
-            param << "null"sv;
+            param.write("null", 4);
         }
-        param << '&';
+        param.put('&');
     }
     auto &&result = param.str();
     if (!result.empty())
@@ -85,10 +86,11 @@ std::u8string YJson::urlEncode(const std::u8string_view url) const
     using namespace std::literals;
     assert(_type == YJson::Object);
     std::ostringstream param;
-    param << url;
+    param.write(reinterpret_cast<const char*>(url.data()), url.size());
     for (const auto &[key, value] : *_value.Object)
     {
-        param << key << '=';
+        param.write(reinterpret_cast<const char*>(key.data()), key.size());
+        param.put('=');
         switch (value._type)
         {
         case YJson::Number:
@@ -101,16 +103,16 @@ std::u8string YJson::urlEncode(const std::u8string_view url) const
             break;
         }
         case YJson::True:
-            param << "true"sv;
+            param.write("true", 4);
             break;
         case YJson::False:
-            param << "false"sv;
+            param.write("false", 5);
             break;
         case YJson::Null:
         default:
-            param << "null"sv;
+            param.write("null", 4);
         }
-        param << '&';
+        param.put('&');
     }
     auto &&result = param.str();
     if (!result.empty())
