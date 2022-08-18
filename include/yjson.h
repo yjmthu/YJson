@@ -271,7 +271,7 @@ class YJson final
             else if (str[i] == '%')
             {
                 if (i + 2 < str.length())
-                    throw 0;
+                    throw nullptr;
                 unsigned char high = _fromHex((unsigned char)str[++i]);
                 unsigned char low = _fromHex((unsigned char)str[++i]);
                 ret.push_back(high * 16 + low);
@@ -296,7 +296,7 @@ class YJson final
 
     inline std::u8string toString(bool fmt = false) const
     {
-        std::basic_ostringstream<char8_t> result;
+        std::ostringstream result;
         if (fmt)
         {
             printValue(result, 0);
@@ -305,7 +305,8 @@ class YJson final
         {
             printValue(result);
         }
-        return result.str();
+        const std::string str = result.str();
+        return std::u8string(str.begin(), str.end());
     }
 
     inline bool toFile(const std::filesystem::path &file_name, bool fmt = true, const Encode &encode = UTF8)
@@ -1134,25 +1135,25 @@ class YJson final
         throw std::runtime_error("Invalid Object.");
     }
 
-    template <typename _Ty> void printValue(std::basic_ostream<_Ty> &pre) const
+    template <typename _Ty> void printValue(_Ty &pre) const
     {
         using namespace std::literals;
         switch (_type)
         {
         case YJson::Null:
-            pre.write(reinterpret_cast<const _Ty *>("null"), 4);
+            pre.write("null", 4);
             break;
         case YJson::False:
-            pre.write(reinterpret_cast<const _Ty *>("false"), 5);
+            pre.write("false", 5);
             break;
         case YJson::True:
-            pre.write(reinterpret_cast<const _Ty *>("true"), 4);
+            pre.write("true", 4);
             break;
         case YJson::Number:
             printNumber(pre);
             break;
         case YJson::String:
-            printString<_Ty>(pre, *_value.String);
+            printString(pre, *_value.String);
             break;
         case YJson::Array:
             printArray(pre);
@@ -1163,19 +1164,19 @@ class YJson final
             throw std::runtime_error("Unknown YJson Type.");
         }
     }
-    template <typename _Ty> void printValue(std::basic_ostream<_Ty> &pre, int depth) const
+    template <typename _Ty> void printValue(_Ty &pre, int depth) const
     {
         using namespace std::literals;
         switch (_type)
         {
         case YJson::Null:
-            pre.write(reinterpret_cast<const _Ty *>("null"), 4);
+            pre.write("null", 4);
             break;
         case YJson::False:
-            pre.write(reinterpret_cast<const _Ty *>("false"), 5);
+            pre.write("false", 5);
             break;
         case YJson::True:
-            pre.write(reinterpret_cast<const _Ty *>("true"), 4);
+            pre.write("true", 4);
             break;
         case YJson::Number:
             printNumber(pre);
@@ -1193,7 +1194,7 @@ class YJson final
             throw std::runtime_error("Unknown YJson Type.");
         }
     }
-    template <typename _Ty> void printNumber(std::basic_ostream<_Ty> &pre) const
+    template <typename _Ty> void printNumber(_Ty &pre) const
     {
         const double valuedouble = *_value.Double;
         if (valuedouble == 0)
@@ -1206,7 +1207,7 @@ class YJson final
         {
             char temp[21] = {0};
             sprintf(temp, "%.0lf", valuedouble);
-            pre.write(reinterpret_cast<const _Ty *>(temp), strlen(temp));
+            pre.write(temp, strlen(temp));
         }
         else
         {
@@ -1218,95 +1219,90 @@ class YJson final
                 sprintf(temp, "%e", valuedouble);
             else
                 sprintf(temp, "%f", valuedouble);
-            pre.write(reinterpret_cast<const _Ty *>(temp), strlen(temp));
+            pre.write(temp, strlen(temp));
         }
     }
-    template <typename _Ty> static void printString(std::basic_ostream<_Ty> &pre, const std::u8string_view str)
+    template <typename _Ty> static void printString(_Ty &pre, const std::u8string_view str)
     {
-        std::u8string buffer;
+        using namespace std::literals;
         std::u8string_view::iterator ptr;
-        std::u8string::iterator ptr2;
-        size_t len = 0, flag = 0;
+        size_t flag = 0;
         char8_t token;
 
         for (ptr = str.begin(); ptr != str.end(); ++ptr)
             flag |= ((*ptr > 0 && *ptr < 32) || (*ptr == u8'\"') || (*ptr == u8'\\')) ? 1 : 0;
         if (!flag)
         {
-            len = ptr - str.begin();
-            buffer.resize(len + 2);
-            ptr2 = buffer.begin();
-            *ptr2++ = u8'\"';
-            std::copy(str.begin(), str.end(), ptr2);
-            *(ptr2 += len) = u8'\"';
-            pre.write(reinterpret_cast<const _Ty *>(buffer.data()), buffer.length());
+            pre.put('\"');
+            pre.write(reinterpret_cast<const char*>(str.data()), str.size());
+            pre.put('\"');
             return;
         }
         if (str.empty())
         {
-            pre.write(reinterpret_cast<const _Ty *>("\"\""), 2);
+            pre.write("\"\"", 2);
             return;
         }
         ptr = str.begin();
-        while ((ptr != str.end()) && (token = *ptr) && ++len)
-        {
-            if (strchr("\"\\\b\f\n\r\t", token))
-                len++;
-            else if (token < 32)
-                len += 5;
-            ++ptr;
-        }
+        // while ((ptr != str.end()) && (token = *ptr) && ++len)
+        // {
+        //     if ("\"\\\b\f\n\r\t"sv.find(token) != std::string_view::npos)
+        //         len++;
+        //     else if (token < 0x20)
+        //         len += 5;
+        //     ++ptr;
+        // }
 
-        buffer.resize(len + 3);
-        ptr2 = buffer.begin();
         ptr = str.begin();
-        *ptr2++ = u8'\"';
+        char buffer[6];
+        pre.put('\"');
         while (ptr != str.end())
         {
             if (*ptr > 31 && *ptr != '\"' && *ptr != '\\')
-                *ptr2++ = *ptr++;
+                // *ptr2++ = *ptr++;
+                pre.put(*ptr++);
             else
             {
-                *ptr2++ = '\\';
-                switch (token = (unsigned char)*ptr++)
+                // *ptr2++ = '\\';
+                pre.put('\\');
+                switch (token = *ptr++)
                 {
                 case '\\':
-                    *ptr2++ = '\\';
+                    pre.put('\\');
                     break;
                 case '\"':
-                    *ptr2++ = '\"';
+                    pre.put('\"');
                     break;
                 case '\b':
-                    *ptr2++ = 'b';
+                    pre.put('b');
                     break;
                 case '\f':
-                    *ptr2++ = 'f';
+                    pre.put('f');
                     break;
                 case '\n':
-                    *ptr2++ = 'n';
+                    pre.put('n');
                     break;
                 case '\r':
-                    *ptr2++ = 'r';
+                    pre.put('r');
                     break;
                 case '\t':
-                    *ptr2++ = 't';
+                    pre.put('t');
                     break;
                 default:
-                    printf((const char *)&(*ptr2), "u%04x", token);
-                    ptr2 += 5;
+                    printf(buffer, "u%04x", token);
+                    pre.write(buffer, 5);
                     break;
                 }
             }
         }
-        *ptr2 = u8'\"';
-        pre.write(reinterpret_cast<const _Ty *>(buffer.data()), buffer.length());
+        pre.put('\"');
     }
-    template <typename _Ty> void printArray(std::basic_ostream<_Ty> &pre) const
+    template <typename _Ty> void printArray(_Ty &pre) const
     {
         using namespace std::literals;
         if (_value.Array->empty())
         {
-            pre.write(reinterpret_cast<const _Ty *>("[]"), 2);
+            pre.write("[]", 2);
             return;
         }
         pre.put('[');
@@ -1319,35 +1315,34 @@ class YJson final
         i->printValue(pre);
         pre.put(']');
     }
-    template <typename _Ty> void printArray(std::basic_ostream<_Ty> &pre, int depth) const
+    template <typename _Ty> void printArray(_Ty &pre, int depth) const
     {
-        using namespace std::literals;
+        constexpr int depthTimes = 2;
         if (_value.Array->empty())
         {
-            pre.write(reinterpret_cast<const _Ty *>("[]"), 2);
+            pre.write("[]", 2);
             return;
         }
         ++depth;
-        pre.write(reinterpret_cast<const _Ty *>("[\n"), 2);
+        pre.write("[\n", 2);
         auto i = _value.Array->begin(), j = _value.Array->end();
         for (--j; i != j; ++i)
         {
-            pre << std::basic_string<_Ty>(depth << 2, u8' ');
+            pre << std::string(depth << depthTimes, ' ');
             i->printValue(pre, depth);
-            pre.write(reinterpret_cast<const _Ty *>(",\n"), 2);
+            pre.write(",\n", 2);
         }
-        pre << std::basic_string<_Ty>(depth << 2, ' ');
+        pre << std::string(depth << depthTimes, ' ');
         i->printValue(pre, depth);
         pre.put('\n');
-        pre << std::basic_string<_Ty>(--depth << 2, ' ');
+        pre << std::string(--depth << depthTimes, ' ');
         pre.put(']');
     }
-    template <typename _Ty> void printObject(std::basic_ostream<_Ty> &pre) const
+    template <typename _Ty> void printObject(_Ty &pre) const
     {
-        using namespace std::literals;
         if (_value.Object->empty())
         {
-            pre.write(reinterpret_cast<const _Ty *>("{}"), 2);
+            pre.write("{}", 2);
             return;
         }
         pre.put('{');
@@ -1364,31 +1359,31 @@ class YJson final
         i->second.printValue(pre);
         pre.put('}');
     }
-    template <typename _Ty> void printObject(std::basic_ostream<_Ty> &pre, int depth) const
+    template <typename _Ty> void printObject(_Ty &pre, int depth) const
     {
-        using namespace std::literals;
+        constexpr int depthTimes = 2;
         if (_value.Object->empty())
         {
-            pre.write(reinterpret_cast<const _Ty *>("{}"), 2);
+            pre.write("{}", 2);
             return;
         }
         ++depth;
-        pre.write(reinterpret_cast<const _Ty *>("{\n"), 2);
+        pre.write("{\n", 2);
         auto i = _value.Object->begin(), j = _value.Object->end();
         for (--j; i != j; ++i)
         {
-            pre << std::basic_string<_Ty>(depth << 2, ' ');
+            pre << std::string(depth << depthTimes, ' ');
             printString(pre, i->first);
-            pre.write(reinterpret_cast<const _Ty *>(": "), 2);
+            pre.write(": ", 2);
             i->second.printValue(pre, depth);
-            pre.write(reinterpret_cast<const _Ty *>(",\n"), 2);
+            pre.write(",\n", 2);
         }
-        pre << std::basic_string<_Ty>(depth << 2, ' ');
+        pre << std::string(depth << depthTimes, ' ');
         printString(pre, i->first);
-        pre.write(reinterpret_cast<const _Ty *>(": "), 2);
+        pre.write(": ", 2);
         i->second.printValue(pre, depth);
         pre.put('\n');
-        pre << std::basic_string<_Ty>(--depth << 2, ' ');
+        pre << std::string(--depth << depthTimes, ' ');
         pre.put('}');
     }
 
@@ -1412,13 +1407,13 @@ class YJson final
 
 inline std::ostream &operator<<(std::ofstream &out, const YJson &outJson)
 {
-    outJson.printValue(out, false);
+    outJson.printValue(out, 0);
     return out << std::endl;
 }
 
 inline std::ostream &operator<<(std::ostream &out, const YJson &outJson)
 {
-    outJson.printValue(out, false);
+    outJson.printValue(out, 0);
     return out << std::endl;
 }
 

@@ -1,13 +1,14 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.5)
+
+project(YJson VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
+
 if (MSVC)
     add_definitions(-DUNICODE -D_UNICODE -D_CRT_SECURE_NO_WARNINGS=1)
     add_compile_options("/utf-8")
     # add_compile_options("/std:c++latest")
 endif ()
-
-project(YJson)
 
 include_directories(include)
 

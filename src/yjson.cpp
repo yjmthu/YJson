@@ -47,69 +47,75 @@ std::u8string YJson::urlEncode() const
 {
     using namespace std::literals;
     assert(_type == YJson::Object);
-    std::basic_ostringstream<char8_t> param;
+    std::ostringstream param;
     for (const auto &[key, value] : *_value.Object)
     {
-        param << key << u8'=';
+        param << key << '=';
         switch (value._type)
         {
         case YJson::Number:
             value.printNumber(param);
             break;
         case YJson::String:
-            param << pureUrlEncode<char8_t>(*value._value.String);
+        {
+            std::u8string str = pureUrlEncode<char8_t>(*value._value.String);
+            param.write(reinterpret_cast<const char*>(str.data()), str.size());
             break;
+        }
         case YJson::True:
-            param << u8"true"sv;
+            param << "true"sv;
             break;
         case YJson::False:
-            param << u8"false"sv;
+            param << "false"sv;
             break;
         case YJson::Null:
         default:
-            param << u8"null"sv;
+            param << "null"sv;
         }
         param << '&';
     }
     auto &&result = param.str();
     if (!result.empty())
         result.pop_back();
-    return result;
+    return std::u8string(result.begin(), result.end());
 }
 
 std::u8string YJson::urlEncode(const std::u8string_view url) const
 {
     using namespace std::literals;
     assert(_type == YJson::Object);
-    std::basic_ostringstream<char8_t> param;
+    std::ostringstream param;
     param << url;
     for (const auto &[key, value] : *_value.Object)
     {
-        param << key << u8'=';
+        param << key << '=';
         switch (value._type)
         {
         case YJson::Number:
             value.printNumber(param);
             break;
         case YJson::String:
-            param << pureUrlEncode<char8_t>(*value._value.String);
+        {
+            auto str = pureUrlEncode<char8_t>(*value._value.String);
+            param.write(reinterpret_cast<const char*>(str.data()), str.size());
             break;
+        }
         case YJson::True:
-            param << u8"true"sv;
+            param << "true"sv;
             break;
         case YJson::False:
-            param << u8"false"sv;
+            param << "false"sv;
             break;
         case YJson::Null:
         default:
-            param << u8"null"sv;
+            param << "null"sv;
         }
-        param << u8'&';
+        param << '&';
     }
     auto &&result = param.str();
     if (!result.empty())
         result.pop_back();
-    return result;
+    return std::u8string(result.begin(), result.end());
 }
 
 YJson::~YJson()
