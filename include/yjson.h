@@ -5,8 +5,10 @@
 #include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <initializer_list>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <list>
@@ -1165,213 +1167,16 @@ class YJson final
             return;
         }
     }
-    template <typename _Ty> void printValue(_Ty &pre, int depth) const
+    void printValue(std::ostream &pre, int depth) const;
+    inline void printNumber(std::ostream &pre) const
     {
-        using namespace std::literals;
-        switch (_type)
-        {
-        case YJson::Null:
-            pre.write("null", 4);
-            break;
-        case YJson::False:
-            pre.write("false", 5);
-            break;
-        case YJson::True:
-            pre.write("true", 4);
-            break;
-        case YJson::Number:
-            printNumber(pre);
-            break;
-        case YJson::String:
-            printString(pre, *_value.String);
-            break;
-        case YJson::Array:
-            printArray(pre, depth);
-            break;
-        case YJson::Object:
-            printObject(pre, depth);
-            break;
-        default:
-            throw std::runtime_error("Unknown YJson Type.");
-        }
+        pre << std::format("{}", *_value.Double);
     }
-    template <typename _Ty> void printNumber(_Ty &pre) const
-    {
-        const double valuedouble = *_value.Double;
-        if (valuedouble == 0)
-        {
-            pre.put('0');
-        }
-        else if (fabs(round(valuedouble) - valuedouble) <= std::numeric_limits<double>::epsilon() &&
-                 valuedouble <= static_cast<double>(std::numeric_limits<int32_t>::max()) &&
-                 valuedouble >= static_cast<double>(std::numeric_limits<int32_t>::min()))
-        {
-            char temp[21] = {0};
-            sprintf(temp, "%.0lf", valuedouble);
-            pre.write(temp, strlen(temp));
-        }
-        else
-        {
-            char temp[64] = {0};
-            if (fabs(floor(valuedouble) - valuedouble) <= std::numeric_limits<double>::epsilon() &&
-                fabs(valuedouble) < 1.0e60)
-                sprintf(temp, "%.0f", valuedouble);
-            else if (fabs(valuedouble) < 1.0e-6 || fabs(valuedouble) > 1.0e9)
-                sprintf(temp, "%e", valuedouble);
-            else
-                sprintf(temp, "%f", valuedouble);
-            pre.write(temp, strlen(temp));
-        }
-    }
-    template <typename _Ty> static void printString(_Ty &pre, const std::u8string_view str)
-    {
-        using namespace std::literals;
-
-        pre.put('\"');
-        if (str.empty())
-        {
-            pre.put('\"');
-            return;
-        }
-
-        constexpr auto cmp = [](char8_t c)->bool{ return c < 32 || c == u8'\"' || c == u8'\\'; };
-
-        if (std::find_if(str.begin(), str.end(), cmp) == str.end())
-        {
-            pre.write(reinterpret_cast<const char*>(str.data()), str.size());
-            pre.put('\"');
-            return;
-        }
-
-        char buffer[6];
-        for (const auto c: str)
-        {
-            if (cmp(c))
-            {
-                pre.put('\\');
-                switch (c)
-                {
-                case '\\':
-                    pre.put('\\');
-                    break;
-                case '\"':
-                    pre.put('\"');
-                    break;
-                case '\b':
-                    pre.put('b');
-                    break;
-                case '\f':
-                    pre.put('f');
-                    break;
-                case '\n':
-                    pre.put('n');
-                    break;
-                case '\r':
-                    pre.put('r');
-                    break;
-                case '\t':
-                    pre.put('t');
-                    break;
-                default:
-                    printf(buffer, "u%04x", c);
-                    pre.write(buffer, 5);
-                    break;
-                }
-            } else {
-                pre.put(c);
-            }
-        }
-        pre.put('\"');
-    }
-    template <typename _Ty> void printArray(_Ty &pre) const
-    {
-        using namespace std::literals;
-        if (_value.Array->empty())
-        {
-            pre.write("[]", 2);
-            return;
-        }
-        pre.put('[');
-        auto i = _value.Array->begin(), j = _value.Array->end();
-        for (--j; i != j; ++i)
-        {
-            i->printValue(pre);
-            pre.put(',');
-        }
-        i->printValue(pre);
-        pre.put(']');
-    }
-    template <typename _Ty> void printArray(_Ty &pre, int depth) const
-    {
-        constexpr int depthTimes = 2;
-        if (_value.Array->empty())
-        {
-            pre.write("[]", 2);
-            return;
-        }
-        ++depth;
-        pre.write("[\n", 2);
-        auto i = _value.Array->begin(), j = _value.Array->end();
-        for (--j; i != j; ++i)
-        {
-            pre << std::string(depth << depthTimes, ' ');
-            i->printValue(pre, depth);
-            pre.write(",\n", 2);
-        }
-        pre << std::string(depth << depthTimes, ' ');
-        i->printValue(pre, depth);
-        pre.put('\n');
-        pre << std::string(--depth << depthTimes, ' ');
-        pre.put(']');
-    }
-    template <typename _Ty> void printObject(_Ty &pre) const
-    {
-        if (_value.Object->empty())
-        {
-            pre.write("{}", 2);
-            return;
-        }
-        pre.put('{');
-        auto i = _value.Object->begin(), j = _value.Object->end();
-        for (--j; j != i; ++i)
-        {
-            printString(pre, i->first);
-            pre.put(':');
-            i->second.printValue(pre);
-            pre.put(',');
-        }
-        printString(pre, i->first);
-        pre.put(':');
-        i->second.printValue(pre);
-        pre.put('}');
-    }
-    template <typename _Ty> void printObject(_Ty &pre, int depth) const
-    {
-        constexpr int depthTimes = 2;
-        if (_value.Object->empty())
-        {
-            pre.write("{}", 2);
-            return;
-        }
-        ++depth;
-        pre.write("{\n", 2);
-        auto i = _value.Object->begin(), j = _value.Object->end();
-        for (--j; i != j; ++i)
-        {
-            pre << std::string(depth << depthTimes, ' ');
-            printString(pre, i->first);
-            pre.write(": ", 2);
-            i->second.printValue(pre, depth);
-            pre.write(",\n", 2);
-        }
-        pre << std::string(depth << depthTimes, ' ');
-        printString(pre, i->first);
-        pre.write(": ", 2);
-        i->second.printValue(pre, depth);
-        pre.put('\n');
-        pre << std::string(--depth << depthTimes, ' ');
-        pre.put('}');
-    }
+    static void printString(std::ostream &pre, const std::u8string_view str);
+    void printArray(std::ostream &pre) const;
+    void printArray(std::ostream &pre, int depth) const;
+    void printObject(std::ostream &pre) const;
+    void printObject(std::ostream &pre, int depth) const;
 
     inline void clearData()
     {

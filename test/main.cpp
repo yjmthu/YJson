@@ -1,6 +1,6 @@
 #include <yjson.h>
 
-#ifdef  _WIN32
+#ifdef _WIN32
 #include <windows.h>
 #endif
 
@@ -129,8 +129,9 @@ void read()
     }
 
     std::cout << "----------- Print test ------------\n";
-    { auto str = json.toString(true);
-      std::cout << (const char*) str.c_str()<< std::endl;
+    {
+        auto str = json.toString(true);
+        std::cout << (const char *)str.c_str() << std::endl;
     }
 }
 
@@ -144,6 +145,6 @@ int main()
     // construct();
     const YJson js("C:/Users/hacker/.config/Neobox/Wallhaven.json", YJson::UTF8);
     auto str = js.toString(false);
-    std::cout.write((const char*)str.data(), str.size());
+    std::cout.write((const char *)str.data(), str.size());
     return 0;
 }
