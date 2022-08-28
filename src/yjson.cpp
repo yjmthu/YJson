@@ -1,10 +1,7 @@
 #include "yjson.h"
 
-#include <assert.h>
-
-#include <fstream>
+#include <cassert>
 #include <iomanip>
-#include <utility>
 
 constexpr char8_t YJson::utf8bom[];
 constexpr char8_t YJson::utf16le[];
@@ -15,7 +12,6 @@ constexpr char8_t YJson::utf8FirstCharMark[7];
 YJson::YJson(const std::filesystem::path &path, YJson::Encode encode)
 {
     std::ifstream file(path, std::ios::in | std::ios::binary);
-    assert(file.is_open());
     file.seekg(0, std::ios::end);
     size_t size = file.tellg();
     file.seekg(0, std::ios::beg);
