@@ -34,9 +34,11 @@ class YJson final {
   typedef std::pair<std::u8string, YJson> ObjectItemType;
   typedef std::list<ObjectItemType> ObjectType;
   typedef ObjectType::iterator ObjectIterator;
+  typedef ObjectType::const_iterator ObjectConstIterator;
   typedef YJson ArrayItemType;
   typedef std::list<ArrayItemType> ArrayType;
   typedef ArrayType::iterator ArrayIterator;
+  typedef ArrayType::const_iterator ArrayConstIterator;
 
  private:
   // typedef std::u8string_view::const_iterator StrIterator;
@@ -667,8 +669,8 @@ class YJson final {
   inline bool isFalse() const { return _type == False; }
   inline bool isNull() const { return _type == Null; }
 
-  inline bool emptyA() { return _value.Array->empty(); }
-  inline bool emptyO() { return _value.Object->empty(); }
+  inline bool emptyA() const { return _value.Array->empty(); }
+  inline bool emptyO() const { return _value.Object->empty(); }
 
   inline void clearA() { _value.Array->clear(); }
   inline void clearO() { _value.Object->clear(); }
@@ -680,6 +682,16 @@ class YJson final {
   inline ObjectItemType backO() { return _value.Object->back(); }
   inline ArrayItemType frontA() { return _value.Array->front(); }
   inline ArrayItemType backA() { return _value.Array->back(); }
+
+
+  inline ArrayConstIterator beginA() const { return _value.Array->begin(); }
+  inline ObjectConstIterator beginO() const { return _value.Object->begin(); }
+  inline ArrayConstIterator endA() const { return _value.Array->end(); }
+  inline ObjectConstIterator endO() const { return _value.Object->end(); }
+  inline const ObjectItemType frontO() const { return _value.Object->front(); }
+  inline const ObjectItemType backO() const { return _value.Object->back(); }
+  inline const ArrayItemType frontA() const { return _value.Array->front(); }
+  inline const ArrayItemType backA() const { return _value.Array->back(); }
 
   friend std::ostream& operator<<(std::ofstream& out, const YJson& outJson);
   friend std::ostream& operator<<(std::ostream& out, const YJson& outJson);
@@ -861,7 +873,7 @@ class YJson final {
             case 1:
               *--bufferEnd = (uc | utf8FirstCharMark[len]);
           }
-          des.insert(des.end(), bufferBegin, bufferBegin + len);
+          des.append(bufferBegin, bufferBegin + len);
           break;
         default:
           des.push_back(*ptr);
