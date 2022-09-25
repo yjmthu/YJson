@@ -683,7 +683,6 @@ class YJson final {
   inline ArrayItemType frontA() { return _value.Array->front(); }
   inline ArrayItemType backA() { return _value.Array->back(); }
 
-
   inline ArrayConstIterator beginA() const { return _value.Array->begin(); }
   inline ObjectConstIterator beginO() const { return _value.Object->begin(); }
   inline ArrayConstIterator endA() const { return _value.Array->end(); }
