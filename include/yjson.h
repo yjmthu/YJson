@@ -364,38 +364,38 @@ class YJson final {
   inline const ArrayItemType& operator[](int i) { return *find(i); }
   inline const ArrayItemType& operator[](int i) const { return *find(i); }
 
-  inline ObjectItemType& operator[](const char8_t* key) {
+  inline ArrayItemType& operator[](const char8_t* key) {
     auto itr = find(key);
     if (itr == _value.Object->end()) {
-      return *_value.Object->emplace(itr, key, YJson::Null);
+      return _value.Object->emplace(itr, key, YJson::Null)->second;
     } else {
-      return *itr;
+      return itr->second;
     }
   }
 
-  inline const ObjectItemType& operator[](const char8_t* key) const {
+  inline const ArrayItemType& operator[](const char8_t* key) const {
     auto itr = find(key);
     if (itr == _value.Object->end()) {
-      return *_value.Object->emplace(itr, key, YJson::Null);
+      return _value.Object->emplace(itr, key, YJson::Null)->second;
     } else {
-      return *itr;
+      return itr->second;
     }
   }
 
-  inline ObjectItemType& operator[](const std::u8string_view key) {
+  inline ArrayItemType& operator[](const std::u8string_view key) {
     auto itr = find(key);
     if (itr == _value.Object->end()) {
-      return *_value.Object->emplace(itr, key, YJson::Null);
+      return _value.Object->emplace(itr, key, YJson::Null)->second;
     } else {
-      return *itr;
+      return itr->second;
     }
   }
-  inline const ObjectItemType& operator[](const std::u8string_view key) const {
+  inline const ArrayItemType& operator[](const std::u8string_view key) const {
     auto itr = find(key);
     if (itr == _value.Object->end()) {
-      return *_value.Object->emplace(itr, key, YJson::Null);
+      return _value.Object->emplace(itr, key, YJson::Null)->second;
     } else {
-      return *itr;
+      return itr->second;
     }
   }
 
