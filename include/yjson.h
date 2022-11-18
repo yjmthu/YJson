@@ -137,6 +137,12 @@ class YJson final {
   ~YJson();
 
   inline YJson::Type getType() const { return _type; }
+  inline bool isSameType(const YJson* other) const {
+    if (!other) return false;
+    if (_type == True || _type == False)
+      return other->_type == True || other->_type == False;
+    return _type == other->_type;
+  }
 
   inline std::u8string& getValueString() { return *_value.String; }
   inline const std::u8string& getValueString() const { return *_value.String; }
