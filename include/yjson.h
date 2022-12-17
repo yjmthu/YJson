@@ -666,6 +666,10 @@ class YJson final {
     std::swap(A._type, B._type);
     std::swap(A._value, B._value);
   }
+  inline void swap(YJson& other) {
+    std::swap(_type, other._type);
+    std::swap(_value, other._value);
+  }
 
   inline bool isArray() const { return _type == Array; }
   inline bool isObject() const { return _type == Object; }
