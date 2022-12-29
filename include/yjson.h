@@ -367,7 +367,7 @@ class YJson final {
   inline ArrayItemType& operator[](size_t i) { return *find(i); }
   inline const ArrayItemType& operator[](size_t i) const { return *find(i); }
 
-  inline const ArrayItemType& operator[](int i) { return *find(i); }
+  inline ArrayItemType& operator[](int i) { return *find(i); }
   inline const ArrayItemType& operator[](int i) const { return *find(i); }
 
   inline ArrayItemType& operator[](const char8_t* key) {
@@ -688,10 +688,10 @@ class YJson final {
   inline ObjectIterator beginO() { return _value.Object->begin(); }
   inline ArrayIterator endA() { return _value.Array->end(); }
   inline ObjectIterator endO() { return _value.Object->end(); }
-  inline ObjectItemType frontO() { return _value.Object->front(); }
-  inline ObjectItemType backO() { return _value.Object->back(); }
-  inline ArrayItemType frontA() { return _value.Array->front(); }
-  inline ArrayItemType backA() { return _value.Array->back(); }
+  inline ObjectItemType& frontO() { return _value.Object->front(); }
+  inline ObjectItemType& backO() { return _value.Object->back(); }
+  inline ArrayItemType& frontA() { return _value.Array->front(); }
+  inline ArrayItemType& backA() { return _value.Array->back(); }
 
   inline ArrayConstIterator beginA() const { return _value.Array->begin(); }
   inline ObjectConstIterator beginO() const { return _value.Object->begin(); }

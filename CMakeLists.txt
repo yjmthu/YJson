@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10.1)
 
 project(YJson VERSION 1.0 LANGUAGES CXX)
 
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 set(CMAKE_CXX_STANDARD 20)
 
 if (MSVC)
@@ -12,8 +13,15 @@ endif ()
 
 include_directories(include)
 
-add_library(yjson STATIC src/yjson.cpp)
+link_directories (${PROJECT_SOURCE_DIR}/build)
+add_library(yjson SHARED src/yjson.cpp)
+# add_library(yjson STATIC src/yjson.cpp)
 add_executable(test test/main.cpp)
+target_link_libraries(test PRIVATE yjson)
 
-target_link_libraries(test yjson)
-
+install(TARGETS yjson
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
+  PUBLIC_HEADER DESTINATION include
+)
