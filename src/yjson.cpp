@@ -184,7 +184,7 @@ void YJson::printValue(std::ostream& pre, int depth) const {
       printObject(pre, depth);
       break;
     default:
-      throw std::runtime_error("Unknown YJson Type.");
+      throw std::runtime_error("Unknown yjson type.");
   }
 }
 
