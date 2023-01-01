@@ -21,7 +21,7 @@
 class YJson final {
  private:
   static constexpr char8_t utf8bom[] = {0xEF, 0xBB, 0xBF};
-  static constexpr char8_t utf16le[] = {0xFF, 0xFE};
+  // static constexpr char8_t utf16le[] = {0xFF, 0xFE};
 
   static constexpr char16_t utf16FirstWcharMark[3] = {0xD800, 0xDC00, 0xE000};
   static constexpr char8_t utf8FirstCharMark[7] = {0x00, 0x00, 0xC0, 0xE0,

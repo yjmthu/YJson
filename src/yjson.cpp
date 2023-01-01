@@ -4,7 +4,7 @@
 #include <iomanip>
 
 constexpr char8_t YJson::utf8bom[];
-constexpr char8_t YJson::utf16le[];
+// constexpr char8_t YJson::utf16le[];
 
 constexpr char16_t YJson::utf16FirstWcharMark[3];
 constexpr char8_t YJson::utf8FirstCharMark[7];
