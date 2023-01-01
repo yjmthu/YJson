@@ -21,5 +21,6 @@ YJson data {
     }}
   }
 };
+data[u8"uuid"] = u8"xxxxxxxxxxxxxxxxxxxxxxx";
 data.toFile("usage.json");
 ```
