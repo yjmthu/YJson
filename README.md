@@ -22,5 +22,6 @@ YJson data {
   }
 };
 data[u8"uuid"] = u8"xxxxxxxxxxxxxxxxxxxxxxx";
+std::cout << data;
 data.toFile("usage.json");
 ```
