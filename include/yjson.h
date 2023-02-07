@@ -108,6 +108,14 @@ class YJson final {
     }
   }
 
+  YJson(YJson&& other)
+    : _type(other._type)
+  {
+    _value = other._value;
+    // other._value = nullptr;
+    other._type = YJson::Null;
+  }
+
   template <typename _Iterator>
   inline YJson(_Iterator first, _Iterator last) {
     parseValue(StrSkip(first, last), last);
@@ -595,6 +603,10 @@ class YJson final {
   template <typename _Ty = const std::u8string_view>
   inline ArrayIterator append(_Ty value) {
     return _value.Array->emplace(_value.Array->end(), value);
+  }
+
+  inline ArrayIterator append(YJson&& value) {
+    return _value.Array->emplace(_value.Array->end(), std::move(value));
   }
 
   ArrayIterator remove(ArrayIterator item) { return _value.Array->erase(item); }
