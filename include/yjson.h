@@ -7,6 +7,7 @@
 #include <initializer_list>
 #include <iostream>
 #include <list>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -28,7 +29,7 @@ class YJson final {
                                                    0xF0, 0xF8, 0xFC};
 
  public:
-  inline explicit YJson() {}
+  explicit YJson() {}
   enum Type { False = 0, True = 1, Null, Number, String, Array, Object };
   enum Encode { UTF8, UTF8BOM };
   typedef std::pair<std::u8string, YJson> ObjectItemType;
@@ -44,14 +45,14 @@ class YJson final {
   // typedef std::u8string_view::const_iterator StrIterator;
 
   template <typename StrIterator>
-  static inline StrIterator StrSkip(StrIterator first, StrIterator last) {
+  static StrIterator StrSkip(StrIterator first, StrIterator last) {
     while (first < last && static_cast<char8_t>(*first) <= 32)
       first++;
     return first;
   }
 
  public:
-  inline YJson(Type type) : _type(type) {
+  YJson(Type type) : _type(type) {
     switch (type) {
       case YJson::Object:
         _value.Object = new ObjectType;
@@ -68,25 +69,25 @@ class YJson final {
         break;
     }
   }
-  inline YJson(double val) : _type(YJson::Number) {
+  YJson(double val) : _type(YJson::Number) {
     _value.Double = new double(val);
   }
-  inline YJson(int val) : _type(YJson::Number) {
+  YJson(int val) : _type(YJson::Number) {
     _value.Double = new double(val);
   }
-  inline YJson(const std::u8string_view str) : _type(YJson::String) {
+  YJson(const std::u8string_view str) : _type(YJson::String) {
     _value.String = new std::u8string(str);
   }
-  inline YJson(const std::u8string& str) : _type(YJson::String) {
+  YJson(const std::u8string& str) : _type(YJson::String) {
     _value.String = new std::u8string(str);
   }
-  inline YJson(const char8_t* str) : _type(YJson::String) {
+  YJson(const char8_t* str) : _type(YJson::String) {
     _value.String = new std::u8string(str);
   }
-  inline YJson(const std::filesystem::path& str) : _type(YJson::String) {
+  YJson(const std::filesystem::path& str) : _type(YJson::String) {
     _value.String = new std::u8string(str.u8string());
   }
-  inline YJson(bool val) : _type(val ? YJson::True : YJson::False) {}
+  YJson(bool val) : _type(val ? YJson::True : YJson::False) {}
   YJson(const YJson& other) : _type(other._type) {
     switch (_type) {
       case YJson::Array:
@@ -117,11 +118,11 @@ class YJson final {
   }
 
   template <typename _Iterator>
-  inline YJson(_Iterator first, _Iterator last) {
+  YJson(_Iterator first, _Iterator last) {
     parseValue(StrSkip(first, last), last);
   }
 
-  inline YJson(const char8_t* first, size_t size) {
+  YJson(const char8_t* first, size_t size) {
     parseValue(StrSkip(first, first + size), first + size);
   }
 
@@ -144,32 +145,32 @@ class YJson final {
   explicit YJson(const std::filesystem::path& path, Encode encode);
   ~YJson();
 
-  inline YJson::Type getType() const { return _type; }
-  inline bool isSameType(const YJson* other) const {
+  YJson::Type getType() const { return _type; }
+  bool isSameType(const YJson* other) const {
     if (!other) return false;
     if (_type == True || _type == False)
       return other->_type == True || other->_type == False;
     return _type == other->_type;
   }
 
-  inline std::u8string& getValueString() { return *_value.String; }
-  inline const std::u8string& getValueString() const { return *_value.String; }
-  inline int32_t getValueInt() { return static_cast<int32_t>(*_value.Double); }
-  inline const int32_t getValueInt() const {
+  std::u8string& getValueString() { return *_value.String; }
+  const std::u8string& getValueString() const { return *_value.String; }
+  int32_t getValueInt() { return static_cast<int32_t>(*_value.Double); }
+  const int32_t getValueInt() const {
     return static_cast<int32_t>(*_value.Double);
   }
-  inline double& getValueDouble() { return *_value.Double; }
-  inline double getValueDouble() const { return *_value.Double; }
-  inline ObjectType& getObject() { return *_value.Object; }
-  inline const ObjectType& getObject() const { return *_value.Object; }
-  inline ArrayType& getArray() { return *_value.Array; }
-  inline const ArrayType& getArray() const { return *_value.Array; }
+  double& getValueDouble() { return *_value.Double; }
+  double getValueDouble() const { return *_value.Double; }
+  ObjectType& getObject() { return *_value.Object; }
+  const ObjectType& getObject() const { return *_value.Object; }
+  ArrayType& getArray() { return *_value.Array; }
+  const ArrayType& getArray() const { return *_value.Array; }
 
-  inline static unsigned char _toHex(unsigned char x) {
+  static unsigned char _toHex(unsigned char x) {
     return x > 9 ? x + 55 : x + 48;
   }
 
-  inline static unsigned char _fromHex(unsigned char x) {
+  static unsigned char _fromHex(unsigned char x) {
     unsigned char y;
     if (x >= 'A' && x <= 'Z')
       y = x - 'A' + 10;
@@ -182,9 +183,9 @@ class YJson final {
     return y;
   }
 
-  inline void popBackA() { _value.Array->pop_back(); }
+  void popBackA() { _value.Array->pop_back(); }
 
-  inline void popBackO() { _value.Object->pop_back(); }
+  void popBackO() { _value.Object->pop_back(); }
 
   template <typename _Iterator>
   void assignA(_Iterator first, _Iterator last) {
@@ -239,10 +240,10 @@ class YJson final {
   std::u8string urlEncode() const;
   std::u8string urlEncode(const std::u8string_view url) const;
 
-  inline size_t sizeA() const { return _value.Array->size(); }
-  inline size_t sizeO() const { return _value.Object->size(); }
+  size_t sizeA() const { return _value.Array->size(); }
+  size_t sizeO() const { return _value.Object->size(); }
 
-  inline std::u8string toString(bool fmt = false) const {
+  std::u8string toString(bool fmt = false) const {
     std::ostringstream result;
     if (fmt) {
       printValue(result, 0);
@@ -253,7 +254,7 @@ class YJson final {
     return std::u8string(str.begin(), str.end());
   }
 
-  inline bool toFile(const std::filesystem::path& file_name,
+  bool toFile(const std::filesystem::path& file_name,
                      bool fmt = true,
                      const Encode& encode = UTF8) {
     std::ofstream result(file_name, std::ios::out | std::ios::binary);
@@ -272,7 +273,7 @@ class YJson final {
     return true;
   }
 
-  inline YJson& operator=(const YJson& other) {
+  YJson& operator=(const YJson& other) {
     if (this == &other)
       return *this;
     clearData();
@@ -298,60 +299,60 @@ class YJson final {
     return *this;
   }
 
-  inline YJson& operator=(YJson&& other) noexcept {
+  YJson& operator=(YJson&& other) noexcept {
     YJson::swap(*this, other);
     return *this;
   }
 
-  inline YJson& operator=(const std::u8string_view str) {
+  YJson& operator=(const std::u8string_view str) {
     clearData();
     _type = YJson::String;
     _value.String = new std::u8string(str);
     return *this;
   }
 
-  inline YJson& operator=(std::u8string&& str) {
+  YJson& operator=(std::u8string&& str) {
     clearData();
     _type = YJson::String;
     _value.String = new std::u8string(std::move(str));
     return *this;
   }
 
-  inline YJson& operator=(const std::u8string& str) {
+  YJson& operator=(const std::u8string& str) {
     clearData();
     _type = YJson::String;
     _value.String = new std::u8string(str);
     return *this;
   }
 
-  inline YJson& operator=(const char8_t* str) {
+  YJson& operator=(const char8_t* str) {
     clearData();
     _type = YJson::String;
     _value.String = new std::u8string(str);
     return *this;
   }
 
-  inline YJson& operator=(double val) {
+  YJson& operator=(double val) {
     clearData();
     _type = YJson::Number;
     _value.Double = new double(val);
     return *this;
   }
 
-  inline YJson& operator=(int val) {
+  YJson& operator=(int val) {
     clearData();
     _type = YJson::Number;
     _value.Double = new double(val);
     return *this;
   }
 
-  inline YJson& operator=(bool val) {
+  YJson& operator=(bool val) {
     clearData();
     _type = static_cast<YJson::Type>(val);
     return *this;
   }
 
-  inline YJson& operator=(YJson::Type type) {
+  YJson& operator=(YJson::Type type) {
     clearData();
     switch (_type = type) {
       case YJson::Object:
@@ -372,13 +373,13 @@ class YJson final {
     return *this;
   }
 
-  inline ArrayItemType& operator[](size_t i) { return *find(i); }
-  inline const ArrayItemType& operator[](size_t i) const { return *find(i); }
+  ArrayItemType& operator[](size_t i) { return *find(i); }
+  const ArrayItemType& operator[](size_t i) const { return *find(i); }
 
-  inline ArrayItemType& operator[](int i) { return *find(i); }
-  inline const ArrayItemType& operator[](int i) const { return *find(i); }
+  ArrayItemType& operator[](int i) { return *find(i); }
+  const ArrayItemType& operator[](int i) const { return *find(i); }
 
-  inline ArrayItemType& operator[](const char8_t* key) {
+  ArrayItemType& operator[](const char8_t* key) {
     auto itr = find(key);
     if (itr == _value.Object->end()) {
       return _value.Object->emplace(itr, key, YJson::Null)->second;
@@ -387,7 +388,7 @@ class YJson final {
     }
   }
 
-  inline const ArrayItemType& operator[](const char8_t* key) const {
+  const ArrayItemType& operator[](const char8_t* key) const {
     auto itr = find(key);
     if (itr == _value.Object->end()) {
       return _value.Object->emplace(itr, key, YJson::Null)->second;
@@ -396,7 +397,7 @@ class YJson final {
     }
   }
 
-  inline ArrayItemType& operator[](const std::u8string_view key) {
+  ArrayItemType& operator[](const std::u8string_view key) {
     auto itr = find(key);
     if (itr == _value.Object->end()) {
       return _value.Object->emplace(itr, key, YJson::Null)->second;
@@ -404,7 +405,7 @@ class YJson final {
       return itr->second;
     }
   }
-  inline const ArrayItemType& operator[](const std::u8string_view key) const {
+  const ArrayItemType& operator[](const std::u8string_view key) const {
     auto itr = find(key);
     if (itr == _value.Object->end()) {
       return _value.Object->emplace(itr, key, YJson::Null)->second;
@@ -413,7 +414,7 @@ class YJson final {
     }
   }
 
-  inline bool operator==(const YJson& other) const {
+  bool operator==(const YJson& other) const {
     if (this == &other)
       return true;
     if (_type != other._type)
@@ -459,7 +460,7 @@ class YJson final {
     return _type == YJson::String && *_value.String == str;
   }
 
-  inline void setText(const std::u8string_view val) {
+  void setText(const std::u8string_view val) {
     if (_type != YJson::String) {
       clearData();
       _type = YJson::String;
@@ -469,7 +470,7 @@ class YJson final {
     }
   }
 
-  inline void setText(const char8_t* val) {
+  void setText(const char8_t* val) {
     if (_type != YJson::String) {
       clearData();
       _type = YJson::String;
@@ -479,7 +480,7 @@ class YJson final {
     }
   }
 
-  inline void setText(const std::u8string& val) {
+  void setText(const std::u8string& val) {
     if (_type != YJson::String) {
       clearData();
       _type = YJson::String;
@@ -489,7 +490,7 @@ class YJson final {
     }
   }
 
-  inline void setText(std::u8string&& val) {
+  void setText(std::u8string&& val) {
     if (_type != YJson::String) {
       clearData();
       _type = YJson::String;
@@ -499,7 +500,7 @@ class YJson final {
   }
 
   template <typename _Iterator>
-  inline void setText(_Iterator first, _Iterator last) {
+  void setText(_Iterator first, _Iterator last) {
     if (_type != YJson::String) {
       clearData();
       _type = YJson::String;
@@ -509,7 +510,7 @@ class YJson final {
     }
   }
 
-  inline void setText(const std::filesystem::path& val) {
+  void setText(const std::filesystem::path& val) {
     if (_type != YJson::String) {
       clearData();
       _type = YJson::String;
@@ -520,7 +521,7 @@ class YJson final {
   }
 
   template <typename _Ty>
-  inline void setText(const _Ty& utf8Array) {
+  void setText(const _Ty& utf8Array) {
     if (_type != YJson::String) {
       clearData();
       _type = YJson::String;
@@ -530,21 +531,21 @@ class YJson final {
     _value.String = new std::u8string(utf8Array.begin(), utf8Array.end());
   }
 
-  inline void setValue(double val) {
+  void setValue(double val) {
     clearData();
     _type = YJson::Number;
     _value.Double = new double(val);
   }
 
-  inline void setValue(int val) { setValue(static_cast<double>(val)); }
+  void setValue(int val) { setValue(static_cast<double>(val)); }
 
-  inline void setValue(bool val) {
+  void setValue(bool val) {
     clearData();
     _value.Void = nullptr;
     _type = val ? True : False;
   }
 
-  inline void setNull() {
+  void setNull() {
     clearData();
     _value.Void = nullptr;
     _type = YJson::Null;
@@ -555,26 +556,26 @@ class YJson final {
     return YJson(j1).joinA(j2);
   }
   bool joinO(const YJson&);
-  static inline YJson joinO(const YJson& j1, const YJson& j2) {
+  static YJson joinO(const YJson& j1, const YJson& j2) {
     return YJson(j1).joinO(j2);
   }
 
-  inline ArrayIterator find(size_t index) {
+  ArrayIterator find(size_t index) {
     auto iter = _value.Array->begin();
     while (index-- && iter != _value.Array->end())
       ++iter;
     return iter;
   }
-  inline const ArrayIterator find(size_t index) const {
+  const ArrayIterator find(size_t index) const {
     auto iter = _value.Array->begin();
     while (index-- && iter != _value.Array->end())
       ++iter;
     return iter;
   }
-  inline ArrayIterator findByValA(int value) {
+  ArrayIterator findByValA(int value) {
     return findByValA(static_cast<double>(value));
   }
-  inline const ArrayIterator findByValA(int value) const {
+  const ArrayIterator findByValA(int value) const {
     return findByValA(static_cast<double>(value));
   }
   ArrayIterator findByValA(double value) {
@@ -601,41 +602,41 @@ class YJson final {
   }
 
   template <typename _Ty = const std::u8string_view>
-  inline ArrayIterator append(_Ty value) {
+  ArrayIterator append(_Ty value) {
     return _value.Array->emplace(_value.Array->end(), value);
   }
 
-  inline ArrayIterator append(YJson&& value) {
+  ArrayIterator append(YJson&& value) {
     return _value.Array->emplace(_value.Array->end(), std::move(value));
   }
 
   ArrayIterator remove(ArrayIterator item) { return _value.Array->erase(item); }
-  inline ArrayIterator removeA(size_t index) { return remove(find(index)); }
+  ArrayIterator removeA(size_t index) { return remove(find(index)); }
   template <typename _Ty>
-  inline ArrayIterator removeByValA(_Ty str) {
+  ArrayIterator removeByValA(_Ty str) {
     auto iter = findByValA(str);
     return (iter != _value.Array->end()) ? remove(iter) : iter;
   }
 
-  inline ObjectIterator find(const std::u8string_view key) {
+  ObjectIterator find(const std::u8string_view key) {
     return std::find_if(_value.Object->begin(), _value.Object->end(),
                         [&key](const YJson::ObjectItemType& item) {
                           return item.first == key;
                         });
   }
-  inline const ObjectIterator find(const std::u8string_view key) const {
+  const ObjectIterator find(const std::u8string_view key) const {
     return std::find_if(_value.Object->begin(), _value.Object->end(),
                         [&key](const YJson::ObjectItemType& item) {
                           return item.first == key;
                         });
   }
-  inline ObjectIterator find(const char8_t* key) {
+  ObjectIterator find(const char8_t* key) {
     return find(std::u8string_view(key));
   }
-  inline const ObjectIterator find(const char8_t* key) const {
+  const ObjectIterator find(const char8_t* key) const {
     return find(std::u8string_view(key));
   }
-  inline ObjectIterator findByValO(double value) {
+  ObjectIterator findByValO(double value) {
     return std::find_if(_value.Object->begin(), _value.Object->end(),
                         [&value](const YJson::ObjectItemType& item) {
                           return item.second._type == YJson::Number &&
@@ -643,76 +644,76 @@ class YJson final {
                                      std::numeric_limits<double>::epsilon();
                         });
   }
-  inline ObjectIterator findByValO(const std::u8string_view str) {
+  ObjectIterator findByValO(const std::u8string_view str) {
     return std::find_if(_value.Object->begin(), _value.Object->end(),
                         [&str](const YJson::ObjectItemType& item) {
                           return item.second._type == YJson::String &&
                                  *item.second._value.String == str;
                         });
   }
-  inline ObjectIterator findByValO(int value) {
+  ObjectIterator findByValO(int value) {
     return findByValO(static_cast<double>(value));
   }
 
   template <typename _Ty = const std::u8string_view>
-  inline ObjectIterator append(_Ty value, const std::u8string_view key) {
+  ObjectIterator append(_Ty value, const std::u8string_view key) {
     return _value.Object->emplace(_value.Object->end(), key, value);
   }
 
-  inline ObjectIterator remove(const std::u8string_view key) {
+  ObjectIterator remove(const std::u8string_view key) {
     return remove(find(key));
   }
-  inline ObjectIterator remove(const char8_t* key) { return remove(find(key)); }
-  inline ObjectIterator remove(ObjectIterator item) {
+  ObjectIterator remove(const char8_t* key) { return remove(find(key)); }
+  ObjectIterator remove(ObjectIterator item) {
     return _value.Object->erase(item);
   }
   template <typename _Ty>
-  inline ObjectIterator removeByValO(_Ty str) {
+  ObjectIterator removeByValO(_Ty str) {
     auto iter = findByValO(str);
     return (iter != _value.Object->end()) ? remove(iter) : iter;
   }
 
   static bool isUtf8BomFile(const std::filesystem::path& path);
 
-  static inline void swap(YJson& A, YJson& B) {
+  static void swap(YJson& A, YJson& B) {
     std::swap(A._type, B._type);
     std::swap(A._value, B._value);
   }
-  inline void swap(YJson& other) {
+  void swap(YJson& other) {
     std::swap(_type, other._type);
     std::swap(_value, other._value);
   }
 
-  inline bool isArray() const { return _type == Array; }
-  inline bool isObject() const { return _type == Object; }
-  inline bool isString() const { return _type == String; }
-  inline bool isNumber() const { return _type == Number; }
-  inline bool isTrue() const { return _type == True; }
-  inline bool isFalse() const { return _type == False; }
-  inline bool isNull() const { return _type == Null; }
+  bool isArray() const { return _type == Array; }
+  bool isObject() const { return _type == Object; }
+  bool isString() const { return _type == String; }
+  bool isNumber() const { return _type == Number; }
+  bool isTrue() const { return _type == True; }
+  bool isFalse() const { return _type == False; }
+  bool isNull() const { return _type == Null; }
 
-  inline bool emptyA() const { return _value.Array->empty(); }
-  inline bool emptyO() const { return _value.Object->empty(); }
+  bool emptyA() const { return _value.Array->empty(); }
+  bool emptyO() const { return _value.Object->empty(); }
 
-  inline void clearA() { _value.Array->clear(); }
-  inline void clearO() { _value.Object->clear(); }
-  inline ArrayIterator beginA() { return _value.Array->begin(); }
-  inline ObjectIterator beginO() { return _value.Object->begin(); }
-  inline ArrayIterator endA() { return _value.Array->end(); }
-  inline ObjectIterator endO() { return _value.Object->end(); }
-  inline ObjectItemType& frontO() { return _value.Object->front(); }
-  inline ObjectItemType& backO() { return _value.Object->back(); }
-  inline ArrayItemType& frontA() { return _value.Array->front(); }
-  inline ArrayItemType& backA() { return _value.Array->back(); }
+  void clearA() { _value.Array->clear(); }
+  void clearO() { _value.Object->clear(); }
+  ArrayIterator beginA() { return _value.Array->begin(); }
+  ObjectIterator beginO() { return _value.Object->begin(); }
+  ArrayIterator endA() { return _value.Array->end(); }
+  ObjectIterator endO() { return _value.Object->end(); }
+  ObjectItemType& frontO() { return _value.Object->front(); }
+  ObjectItemType& backO() { return _value.Object->back(); }
+  ArrayItemType& frontA() { return _value.Array->front(); }
+  ArrayItemType& backA() { return _value.Array->back(); }
 
-  inline ArrayConstIterator beginA() const { return _value.Array->begin(); }
-  inline ObjectConstIterator beginO() const { return _value.Object->begin(); }
-  inline ArrayConstIterator endA() const { return _value.Array->end(); }
-  inline ObjectConstIterator endO() const { return _value.Object->end(); }
-  inline const ObjectItemType frontO() const { return _value.Object->front(); }
-  inline const ObjectItemType backO() const { return _value.Object->back(); }
-  inline const ArrayItemType frontA() const { return _value.Array->front(); }
-  inline const ArrayItemType backA() const { return _value.Array->back(); }
+  ArrayConstIterator beginA() const { return _value.Array->begin(); }
+  ObjectConstIterator beginO() const { return _value.Object->begin(); }
+  ArrayConstIterator endA() const { return _value.Array->end(); }
+  ObjectConstIterator endO() const { return _value.Object->end(); }
+  const ObjectItemType frontO() const { return _value.Object->front(); }
+  const ObjectItemType backO() const { return _value.Object->back(); }
+  const ArrayItemType frontA() const { return _value.Array->front(); }
+  const ArrayItemType backA() const { return _value.Array->back(); }
 
   friend std::ostream& operator<<(std::ofstream& out, const YJson& outJson);
   friend std::ostream& operator<<(std::ostream& out, const YJson& outJson);
@@ -801,7 +802,7 @@ class YJson final {
   }
 
   template <typename T>
-  inline static bool _parse_hex4(T str, uint16_t& h) {
+  static bool _parse_hex4(T str, uint16_t& h) {
     if (*str >= '0' && *str <= '9')
       h += (*str) - '0';
     else if (*str >= 'A' && *str <= 'F')
@@ -814,7 +815,7 @@ class YJson final {
   }
 
   template <typename T>
-  inline static uint16_t parse_hex4(T str) {
+  static uint16_t parse_hex4(T str) {
     uint16_t h = 0;
     if (_parse_hex4(str, h) || _parse_hex4(++str, h = h << 4) ||
         _parse_hex4(++str, h = h << 4) || _parse_hex4(++str, h = h << 4))
@@ -1004,7 +1005,7 @@ class YJson final {
     }
   }
   void printValue(std::ostream& pre, int depth) const;
-  inline void printNumber(std::ostream& pre) const {
+  void printNumber(std::ostream& pre) const {
     pre << std::format("{}", *_value.Double);
   }
   static void printString(std::ostream& pre, const std::u8string_view str);
@@ -1013,7 +1014,7 @@ class YJson final {
   void printObject(std::ostream& pre) const;
   void printObject(std::ostream& pre, int depth) const;
 
-  inline void clearData() {
+  void clearData() {
     switch (_type) {
       case YJson::Object:
         delete _value.Object;
@@ -1029,12 +1030,12 @@ class YJson final {
   }
 };
 
-inline std::ostream& operator<<(std::ofstream& out, const YJson& outJson) {
+std::ostream& operator<<(std::ofstream& out, const YJson& outJson) {
   outJson.printValue(out, 0);
   return out << std::endl;
 }
 
-inline std::ostream& operator<<(std::ostream& out, const YJson& outJson) {
+std::ostream& operator<<(std::ostream& out, const YJson& outJson) {
   outJson.printValue(out, 0);
   return out << std::endl;
 }

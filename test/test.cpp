@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string.h>
 
 int main() {
   char8_t pa[] = {0x7F, 0x92, 0x13, 0x01, 0x20, 0x00};
