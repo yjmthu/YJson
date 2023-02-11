@@ -1030,14 +1030,5 @@ class YJson final {
   }
 };
 
-std::ostream& operator<<(std::ofstream& out, const YJson& outJson) {
-  outJson.printValue(out, 0);
-  return out << std::endl;
-}
-
-std::ostream& operator<<(std::ostream& out, const YJson& outJson) {
-  outJson.printValue(out, 0);
-  return out << std::endl;
-}
 
 #endif
