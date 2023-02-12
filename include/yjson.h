@@ -88,6 +88,9 @@ class YJson final {
     _value.String = new std::u8string(str.u8string());
   }
   YJson(bool val) : _type(val ? YJson::True : YJson::False) {}
+  YJson(const ArrayType& array) : _type(YJson::Array) {
+    _value.Array = new ArrayType { array };
+  }
   YJson(const YJson& other) : _type(other._type) {
     switch (_type) {
       case YJson::Array:
