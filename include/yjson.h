@@ -73,11 +73,13 @@ class YJson final {
     _value.Double = new double(val);
   }
   YJson(int val) : YJson(static_cast<double>(val)) {}
-  YJson(std::u8string&& str) : _type(YJson::String) {
+  YJson(std::u8string str) : _type(YJson::String) {
     _value.String = new std::u8string(std::move(str));
   }
-  YJson(std::u8string_view str) : YJson(std::u8string(str)) {}
-  YJson(const char8_t* str) : YJson(std::u8string(str)) {}
+  YJson(std::u8string_view str) : _type(YJson::String) {
+    _value.String = new std::u8string(str.begin(), str.end());
+  }
+  YJson(const char8_t* str) : YJson(std::u8string_view(str)) {}
   YJson(const std::filesystem::path& str) : YJson(str.u8string()) {}
   YJson(bool val) : _type(val ? YJson::True : YJson::False) {}
   YJson(nullptr_t ptr) : _type(YJson::Null) {}
@@ -301,10 +303,6 @@ class YJson final {
     _type = YJson::String;
     _value.String = new std::u8string(std::move(str));
     return *this;
-  }
-
-  YJson& operator=(std::u8string&& str) {
-    return this->operator=(str);
   }
 
   YJson& operator=(std::u8string_view str) {
