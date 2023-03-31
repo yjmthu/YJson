@@ -72,22 +72,15 @@ class YJson final {
   YJson(double val) : _type(YJson::Number) {
     _value.Double = new double(val);
   }
-  YJson(int val) : _type(YJson::Number) {
-    _value.Double = new double(val);
+  YJson(int val) : YJson(static_cast<double>(val)) {}
+  YJson(std::u8string&& str) : _type(YJson::String) {
+    _value.String = new std::u8string(std::move(str));
   }
-  YJson(const std::u8string_view str) : _type(YJson::String) {
-    _value.String = new std::u8string(str);
-  }
-  YJson(const std::u8string& str) : _type(YJson::String) {
-    _value.String = new std::u8string(str);
-  }
-  YJson(const char8_t* str) : _type(YJson::String) {
-    _value.String = new std::u8string(str);
-  }
-  YJson(const std::filesystem::path& str) : _type(YJson::String) {
-    _value.String = new std::u8string(str.u8string());
-  }
+  YJson(std::u8string_view str) : YJson(std::u8string(str)) {}
+  YJson(const char8_t* str) : YJson(std::u8string(str)) {}
+  YJson(const std::filesystem::path& str) : YJson(str.u8string()) {}
   YJson(bool val) : _type(val ? YJson::True : YJson::False) {}
+  YJson(nullptr_t ptr) : _type(YJson::Null) {}
   YJson(const ArrayType& array) : _type(YJson::Array) {
     _value.Array = new ArrayType { array };
   }
@@ -112,7 +105,7 @@ class YJson final {
     }
   }
 
-  YJson(YJson&& other)
+  YJson(YJson&& other) noexcept
     : _type(other._type)
   {
     _value = other._value;
@@ -124,16 +117,13 @@ class YJson final {
   YJson(_Iterator first, _Iterator last) {
     parseValue(StrSkip(first, last), last);
   }
+  YJson(const char8_t* first, size_t size): YJson(first, first + size) {}
 
-  YJson(const char8_t* first, size_t size) {
-    parseValue(StrSkip(first, first + size), first + size);
-  }
-
-  typedef std::initializer_list<std::pair<const std::u8string_view, YJson>> O;
+  typedef std::initializer_list<std::pair<std::u8string_view, YJson>> O;
   YJson(YJson::O lst) : _type(YJson::Type::Object) {
     _value.Object = new ObjectType;
     for (auto& [i, j] : lst) {
-      _value.Object->emplace_back(i, std::move(j));
+      _value.Object->emplace_back(i, j);
     }
   }
 
@@ -141,14 +131,15 @@ class YJson final {
   YJson(YJson::A lst) : _type(YJson::Array) {
     _value.Array = new ArrayType;
     for (auto& i : lst) {
-      _value.Array->emplace_back(std::move(i));
+      _value.Array->emplace_back(i);
     }
   }
 
   explicit YJson(const std::filesystem::path& path, Encode encode);
   ~YJson();
 
-  YJson::Type getType() const { return _type; }
+  YJson::Type& getType() { return _type; }
+  const YJson::Type& getType() const { return const_cast<YJson*>(this)->getType(); }
   bool isSameType(const YJson* other) const {
     if (!other) return false;
     if (_type == True || _type == False)
@@ -157,17 +148,15 @@ class YJson final {
   }
 
   std::u8string& getValueString() { return *_value.String; }
-  const std::u8string& getValueString() const { return *_value.String; }
+  const std::u8string& getValueString() const { return const_cast<YJson*>(this)->getValueString(); }
   int32_t getValueInt() { return static_cast<int32_t>(*_value.Double); }
-  const int32_t getValueInt() const {
-    return static_cast<int32_t>(*_value.Double);
-  }
+  const int32_t getValueInt() const { return const_cast<YJson*>(this)->getValueInt(); }
   double& getValueDouble() { return *_value.Double; }
-  double getValueDouble() const { return *_value.Double; }
+  const double& getValueDouble() const { return const_cast<YJson*>(this)->getValueDouble(); }
   ObjectType& getObject() { return *_value.Object; }
-  const ObjectType& getObject() const { return *_value.Object; }
+  const ObjectType& getObject() const { return const_cast<YJson*>(this)->getObject(); }
   ArrayType& getArray() { return *_value.Array; }
-  const ArrayType& getArray() const { return *_value.Array; }
+  const ArrayType& getArray() const { return const_cast<YJson*>(this)->getArray(); }
 
   static unsigned char _toHex(unsigned char x) {
     return x > 9 ? x + 55 : x + 48;
@@ -307,32 +296,24 @@ class YJson final {
     return *this;
   }
 
-  YJson& operator=(const std::u8string_view str) {
-    clearData();
-    _type = YJson::String;
-    _value.String = new std::u8string(str);
-    return *this;
-  }
-
-  YJson& operator=(std::u8string&& str) {
+  YJson& operator=(std::u8string str) {
     clearData();
     _type = YJson::String;
     _value.String = new std::u8string(std::move(str));
     return *this;
   }
 
-  YJson& operator=(const std::u8string& str) {
-    clearData();
-    _type = YJson::String;
-    _value.String = new std::u8string(str);
-    return *this;
+  YJson& operator=(std::u8string&& str) {
+    return this->operator=(str);
+  }
+
+  YJson& operator=(std::u8string_view str) {
+    std::u8string data(str);
+    return this->operator=(data);
   }
 
   YJson& operator=(const char8_t* str) {
-    clearData();
-    _type = YJson::String;
-    _value.String = new std::u8string(str);
-    return *this;
+    return this->operator=(std::u8string_view(str));
   }
 
   YJson& operator=(double val) {
@@ -343,10 +324,7 @@ class YJson final {
   }
 
   YJson& operator=(int val) {
-    clearData();
-    _type = YJson::Number;
-    _value.Double = new double(val);
-    return *this;
+    return this->operator=(static_cast<double>(val));
   }
 
   YJson& operator=(bool val) {
@@ -377,10 +355,10 @@ class YJson final {
   }
 
   ArrayItemType& operator[](size_t i) { return *find(i); }
-  const ArrayItemType& operator[](size_t i) const { return *find(i); }
+  const ArrayItemType& operator[](size_t i) const { return const_cast<YJson*>(this)->operator[](i); }
 
-  ArrayItemType& operator[](int i) { return *find(i); }
-  const ArrayItemType& operator[](int i) const { return *find(i); }
+  ArrayItemType& operator[](int i) { return const_cast<YJson*>(this)->operator[](static_cast<size_t>(i)); }
+  const ArrayItemType& operator[](int i) const { return const_cast<YJson*>(this)->operator[](i); }
 
   ArrayItemType& operator[](const char8_t* key) {
     auto itr = find(key);
@@ -392,12 +370,7 @@ class YJson final {
   }
 
   const ArrayItemType& operator[](const char8_t* key) const {
-    auto itr = find(key);
-    if (itr == _value.Object->end()) {
-      return _value.Object->emplace(itr, key, YJson::Null)->second;
-    } else {
-      return itr->second;
-    }
+    return const_cast<YJson *>(this)->operator[](key);
   }
 
   ArrayItemType& operator[](const std::u8string_view key) {
@@ -409,12 +382,7 @@ class YJson final {
     }
   }
   const ArrayItemType& operator[](const std::u8string_view key) const {
-    auto itr = find(key);
-    if (itr == _value.Object->end()) {
-      return _value.Object->emplace(itr, key, YJson::Null)->second;
-    } else {
-      return itr->second;
-    }
+    return const_cast<YJson*>(this)->operator[](key);
   }
 
   bool operator==(const YJson& other) const {

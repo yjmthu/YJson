@@ -7,7 +7,7 @@ set(CMAKE_INSTALL_PREFIX "install")
 
 if(MSVC)
   add_definitions(-DUNICODE -D_UNICODE -D_CRT_SECURE_NO_WARNINGS=1)
-  add_compile_options("/utf-8")
+  add_compile_options("/utf-8") # "/std:c++latest"
 endif()
 
 if(UNIX)
