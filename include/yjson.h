@@ -145,17 +145,11 @@ class YJson final {
 
   YJson::Type& getType() { return _type; }
   const YJson::Type& getType() const { return const_cast<YJson*>(this)->getType(); }
-  bool isSameType(const YJson* other) const {
-    if (!other) return false;
-    if (_type == True || _type == False)
-      return other->_type == True || other->_type == False;
-    return _type == other->_type;
-  }
 
   std::u8string& getValueString() { return *_value.String; }
   const std::u8string& getValueString() const { return const_cast<YJson*>(this)->getValueString(); }
-  int32_t getValueInt() { return static_cast<int32_t>(*_value.Double); }
-  const int32_t getValueInt() const { return const_cast<YJson*>(this)->getValueInt(); }
+  template<typename _Ty=int32_t>
+  _Ty getValueInt() const { return static_cast<_Ty>(*_value.Double); }
   double& getValueDouble() { return *_value.Double; }
   const double& getValueDouble() const { return const_cast<YJson*>(this)->getValueDouble(); }
   ObjectType& getObject() { return *_value.Object; }
@@ -334,6 +328,12 @@ class YJson final {
     return *this;
   }
 
+  YJson& operator=(nullptr_t val) {
+    clearData();
+    _type = YJson::Null;
+    return *this;
+  }
+
   YJson& operator=(YJson::Type type) {
     clearData();
     switch (_type = type) {
@@ -411,6 +411,9 @@ class YJson final {
   bool operator==(bool val) const {
     return _type == static_cast<YJson::Type>(val);
   }
+  bool operator==(nullptr_t val) const {
+    return _type == YJson::Null;
+  }
   bool operator==(int val) const {
     if (_type != YJson::Number)
       return false;
@@ -432,43 +435,14 @@ class YJson final {
     return _type == YJson::String && *_value.String == str;
   }
 
-  void setText(const std::u8string_view val) {
+  void setText(std::u8string val) {
     if (_type != YJson::String) {
       clearData();
       _type = YJson::String;
-      _value.String = new std::u8string(val);
+      _value.String = new std::u8string(std::move(val));
     } else {
-      _value.String->assign(val);
+      _value.String->swap(val);
     }
-  }
-
-  void setText(const char8_t* val) {
-    if (_type != YJson::String) {
-      clearData();
-      _type = YJson::String;
-      _value.String = new std::u8string(val);
-    } else {
-      _value.String->assign(val);
-    }
-  }
-
-  void setText(const std::u8string& val) {
-    if (_type != YJson::String) {
-      clearData();
-      _type = YJson::String;
-      _value.String = new std::u8string(val);
-    } else {
-      _value.String->assign(val);
-    }
-  }
-
-  void setText(std::u8string&& val) {
-    if (_type != YJson::String) {
-      clearData();
-      _type = YJson::String;
-      _value.String = new std::u8string;
-    }
-    _value.String->swap(val);
   }
 
   template <typename _Iterator>
