@@ -83,8 +83,11 @@ class YJson final {
   YJson(const std::filesystem::path& str) : YJson(str.u8string()) {}
   YJson(bool val) : _type(val ? YJson::True : YJson::False) {}
   YJson(nullptr_t ptr) : _type(YJson::Null) {}
-  YJson(const ArrayType& array) : _type(YJson::Array) {
-    _value.Array = new ArrayType { array };
+  YJson(ArrayType array) : _type(YJson::Array) {
+    _value.Array = new ArrayType(std::move(array));
+  }
+  YJson(ObjectType object) : _type(YJson::Object) {
+    _value.Object = new ObjectType(std::move(object));
   }
   YJson(const YJson& other) : _type(other._type) {
     switch (_type) {
