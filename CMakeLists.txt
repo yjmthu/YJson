@@ -26,7 +26,7 @@ endif()
 include_directories(include)
 
 link_directories (${PROJECT_SOURCE_DIR}/build)
-add_library(yjson SHARED src/yjson.cpp)
+add_library(yjson STATIC src/yjson.cpp)
 # add_library(yjson STATIC src/yjson.cpp)
 add_executable(test test/test.cpp)
 target_link_libraries(test PUBLIC yjson)
