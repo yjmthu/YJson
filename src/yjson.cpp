@@ -141,22 +141,24 @@ bool YJson::isUtf8BomFile(const std::filesystem::path& path) {
   return false;
 }
 
-bool YJson::joinA(const YJson& js) {
+YJson& YJson::joinA(const YJson& js) {
+  assert(isArray() && js.isArray());
   if (&js == this)
     return joinA(YJson(*this));
-  for (const auto& i : *js._value.Array) {
-    _value.Array->emplace_back(i);
-  }
-  return true;
+  _value.Array->insert(_value.Array->end(), js._value.Array->begin(), js._value.Array->end());
+  return *this;
 }
 
-bool YJson::joinO(const YJson& js) {
+YJson& YJson::joinO(const YJson& js) {
+  assert(isObject() && js.isObject());
   if (&js == this)
     return joinO(YJson(*this));
-  for (const auto& [i, j] : *js._value.Object) {
-    _value.Object->emplace_back(i, j);
-  }
-  return true;
+  _value.Object->insert(_value.Object->end(), js._value.Object->begin(), js._value.Object->end());
+  return *this;
+}
+
+YJson& YJson::join(const YJson& js) {
+  return isArray() ? joinA(js) : joinO(js);
 }
 
 void YJson::printValue(std::ostream& pre, int depth) const {

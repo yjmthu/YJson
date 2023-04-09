@@ -497,14 +497,12 @@ class YJson final {
     _type = YJson::Null;
   }
 
-  bool joinA(const YJson&);
-  static YJson joinA(const YJson& j1, const YJson& j2) {
-    return YJson(j1).joinA(j2);
-  }
-  bool joinO(const YJson&);
-  static YJson joinO(const YJson& j1, const YJson& j2) {
-    return YJson(j1).joinO(j2);
-  }
+  YJson& joinA(const YJson& js);
+  static YJson joinA(YJson j1, const YJson& j2) { return j1.joinA(j2); }
+  YJson& joinO(const YJson& js);
+  static YJson joinO(YJson j1, const YJson& j2) { return j1.joinO(j2); }
+  YJson& join(const YJson& js);
+  static YJson join(YJson j1, const YJson& j2) { return j1.join(j2); }
 
   ArrayIterator find(size_t index) {
     auto iter = _value.Array->begin();
