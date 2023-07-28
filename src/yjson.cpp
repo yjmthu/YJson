@@ -10,7 +10,7 @@ constexpr char8_t YJson::utf8bom[];
 constexpr char16_t YJson::utf16FirstWcharMark[3];
 constexpr char8_t YJson::utf8FirstCharMark[7];
 
-YJson::YJson(const std::filesystem::path& path, YJson::Encode encode) {
+YJson::YJson(const std::filesystem::path& path, YJson::Encode encode): _type(Null) {
   std::ifstream file(path, std::ios::in | std::ios::binary);
   if (!file.is_open()) {
     throw std::runtime_error("YJson Error: File does not exist.");
