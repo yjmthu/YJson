@@ -7,6 +7,7 @@
 #include <initializer_list>
 #include <iostream>
 #include <list>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -110,6 +111,9 @@ class YJson final {
 
   template <typename _Iterator>
   inline YJson(_Iterator first, _Iterator last) {
+    if (first >= last) {
+      throw std::logic_error("YJson Error: The iterator range is wrong.");
+    }
     parseValue(StrSkip(first, last), last);
   }
 

@@ -20,20 +20,24 @@ YJson::YJson(const std::filesystem::path& path, YJson::Encode encode) {
   file.seekg(0, std::ios::beg);
   switch (encode) {
     case YJson::UTF8BOM: {
-      std::u8string json_string;
-      json_string.resize(size - 3);
+      if (size < 3) {
+        throw std::runtime_error("YJson Error: File does not begin with UTF-8 BOM.");
+      }
+      size -= 3;
+      std::u8string json_string(size, u8'\0');
       file.seekg(3, std::ios::beg);
-      file.read(reinterpret_cast<char*>(&json_string[0]), size - 3);
+      file.read(reinterpret_cast<char *>(json_string.data()), size);
       file.close();
-      parseValue(json_string.begin(), json_string.end());
+      auto first = StrSkip(json_string.begin(), json_string.end());
+      parseValue(first, json_string.end());
       break;
     }
     case YJson::UTF8: {
-      std::u8string json_string;
-      json_string.resize(size);
-      file.read(reinterpret_cast<char*>(&json_string[0]), size);
+      std::u8string json_string(size, u8'\0');
+      file.read(reinterpret_cast<char *>(json_string.data()), size);
       file.close();
-      parseValue(json_string.begin(), json_string.end());
+      auto first = StrSkip(json_string.begin(), json_string.end());
+      parseValue(first, json_string.end());
       break;
     }
     default:

@@ -1,6 +1,7 @@
 #ifndef YJSON_H
 #define YJSON_H
 
+#include <ctype.h>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -10,7 +11,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
-#include <system_error>
+#include <stdexcept>
 
 #ifdef max
 #undef max
@@ -46,7 +47,7 @@ class YJson final {
 
   template <typename StrIterator>
   static StrIterator StrSkip(StrIterator first, StrIterator last) {
-    while (first < last && static_cast<char8_t>(*first) <= 32)
+    while (first != last && static_cast<char8_t>(*first) <= 32)
       first++;
     return first;
   }
@@ -80,7 +81,6 @@ class YJson final {
     _value.String = new std::u8string(str.begin(), str.end());
   }
   YJson(const char8_t* str) : YJson(std::u8string_view(str)) {}
-  YJson(const std::filesystem::path& str) : YJson(str.u8string()) {}
   YJson(bool val) : _type(val ? YJson::True : YJson::False) {}
   YJson(nullptr_t ptr) : _type(YJson::Null) {}
   YJson(ArrayType array) : _type(YJson::Array) {
@@ -120,6 +120,9 @@ class YJson final {
 
   template <typename _Iterator>
   YJson(_Iterator first, _Iterator last) {
+    if (first >= last) {
+      throw std::logic_error("YJson Error: The iterator range is wrong.");
+    }
     parseValue(StrSkip(first, last), last);
   }
   YJson(const char8_t* first, size_t size): YJson(first, first + size) {}
@@ -674,8 +677,9 @@ class YJson final {
 
   template <typename StrIterator>
   StrIterator parseValue(StrIterator first, StrIterator last) {
-    if (last <= first)
-      return last;
+    if (last == first)
+      goto empty;
+
     if (*first == '\"') {
       _type = YJson::String;
       _value.String = new std::u8string;
@@ -702,68 +706,92 @@ class YJson final {
       _type = YJson::True;
       return first + 4;
     }
-    return last;
+empty:
+    throw std::runtime_error("YJson Error: Parse empty data!");
   }
 
   template <typename StrIterator>
-  StrIterator parseNumber(StrIterator first, StrIterator) {
+  StrIterator parseNumber(StrIterator first, StrIterator last) {
     _type = YJson::Number;
     _value.Double = new double(0);
-    short sign = 1;
+    int sign = 1;
     int scale = 0;
     int signsubscale = 1, subscale = 0;
+
     if (*first == '-') {
       sign = -1;
-      ++first;
+      if (++first == last) {
+        goto invalid;
+      }
     }
     if (*first == '0') {
       return ++first;
     }
-    if ('1' <= *first && *first <= '9')
-      do
-        *_value.Double += (*_value.Double *= 10.0, *first++ - '0');
-      while (isdigit(*first));
-    if ('.' == *first && isdigit(first[1])) {
-      ++first;
-      do
-        *_value.Double += (*_value.Double *= 10.0, *first++ - '0'), scale--;
-      while (isdigit(*first));
+
+    if (isdigit(*first)) {
+      do {
+        *_value.Double *= 10;
+        *_value.Double += *first - '0';
+      } while (++first != last && isdigit(*first));
+
+      if (first == last) {
+        return first;
+      }
     }
+
+    if (*first == '.') {
+      while (++first != last && isdigit(*first)) {
+        *_value.Double *= 10.0;
+        *_value.Double += *first - '0';
+        scale--;
+      }
+
+      if (first == last) {
+        goto result;
+      }
+    }
+
     if ('e' == *first || 'E' == *first) {
-      if (*++first == '-') {
+      if (++first == last) {
+        goto invalid;
+      }
+      if (*first == '-') {
         signsubscale = -1;
         ++first;
       } else if (*first == '+') {
         ++first;
       }
-      while (isdigit(*first)) {
+      for (;first != last && isdigit(*first);++first) {
         subscale *= 10;
-        subscale += *first++ - '0';
+        subscale += *first - '0';
       }
     }
+result:
     *_value.Double *= sign * pow(10, scale + signsubscale * subscale);
     return first;
+invalid:
+    throw std::runtime_error("YJson Error: Invalid Number.");
   }
 
   template <typename T>
-  static bool _parse_hex4(T str, uint16_t& h) {
-    if (*str >= '0' && *str <= '9')
-      h += (*str) - '0';
-    else if (*str >= 'A' && *str <= 'F')
-      h += 10 + (*str) - 'A';
-    else if (*str >= 'a' && *str <= 'f')
-      h += 10 + (*str) - 'a';
+  static void parseHex4(T c, uint16_t& h) {
+    if (c >= '0' && c <= '9')
+      h += c - '0';
+    else if (c >= 'A' && c <= 'F')
+      h += 10 + c - 'A';
+    else if (c >= 'a' && c <= 'f')
+      h += 10 + c - 'a';
     else
-      return true;
-    return false;
+      throw std::runtime_error("YJson Error: Invalid hexadecimal sequence!");
   }
 
   template <typename T>
-  static uint16_t parse_hex4(T str) {
+  static uint16_t parseHex4(T& str) {
     uint16_t h = 0;
-    if (_parse_hex4(str, h) || _parse_hex4(++str, h = h << 4) ||
-        _parse_hex4(++str, h = h << 4) || _parse_hex4(++str, h = h << 4))
-      return 0;
+    parseHex4(*++str, h);
+    parseHex4(*++str, h = h << 4);
+    parseHex4(*++str, h = h << 4);
+    parseHex4(*++str, h = h << 4);
     return h;
   }
 
@@ -771,7 +799,7 @@ class YJson final {
   static StrIterator parseString(std::u8string& des,
                                  StrIterator first,
                                  StrIterator last) {
-    char bufferBegin[4], *bufferEnd;
+    char8_t bufferBegin[4], *bufferEnd;
     size_t len;
     des.clear();
     StrIterator ptr;
@@ -781,7 +809,10 @@ class YJson final {
         des.push_back(*ptr);
         continue;
       }
-      switch (*++ptr) {
+      if (++ptr == last) {
+        throw std::runtime_error("YJson Error: String's length was too short to be parsed.");
+      }
+      switch (*ptr) {
         case 'b':
           des.push_back('\b');
           break;
@@ -797,24 +828,28 @@ class YJson final {
         case 't':
           des.push_back('\t');
           break;
-        case 'u':
-          uc = parse_hex4(ptr + 1);
-          ptr += 4; /* get the unicode char. */
+        case 'u': // like \uAABB
+          if (ptr + 5 > last) {
+            goto error_throw;
+          }
+          uc = parseHex4(ptr);
 
-          if ((uc >= utf16FirstWcharMark[1] && uc < utf16FirstWcharMark[2]) ||
-              uc == 0)
-            break; /* check for invalid.    */
+          // Single wide character.
 
-          if (uc >= utf16FirstWcharMark[0] &&
-              uc < utf16FirstWcharMark[1]) /* UTF16 surrogate pairs.    */
-          {
-            if (ptr[1] != '\\' || ptr[2] != 'u')
-              break; /* missing second-half of surrogate.    */
-            uc2 = parse_hex4(ptr + 3);
-            ptr += 6;
+          // Two wide characters.
+          if (uc >= utf16FirstWcharMark[0] && uc < utf16FirstWcharMark[1]) {
+            // Multipile wide characters.
+            if (++ptr + 6 > last) {
+              goto error_throw;
+            }
+            if (*ptr != '\\' || *++ptr != 'u')
+              throw std::runtime_error("YJson Error: Missing second-half of surrogate.");
+            uc2 = parseHex4(ptr);
             if (uc2 < utf16FirstWcharMark[1] || uc2 >= utf16FirstWcharMark[2])
-              break; /* invalid second-half of surrogate.    */
+              throw std::runtime_error("YJson Error: Invalid second-half of surrogate.");
             uc = 0x10000 + (((uc & 0x3FF) << 10) | (uc2 & 0x3FF));
+          } else if (uc >= utf16FirstWcharMark[1]) {
+              throw std::runtime_error("YJson Error: Unicode first char is too big.");
           }
 
           len = 4;
@@ -841,10 +876,15 @@ class YJson final {
           }
           des.append(bufferBegin, bufferBegin + len);
           break;
+error_throw:
+          throw std::runtime_error("YJson Error: Unicode chars are too short.");
         default:
           des.push_back(*ptr);
           break;
       }
+    }
+    if (ptr == last || *ptr != '"') {
+      throw std::runtime_error("YJson Error: String missing right quotes.");
     }
     return ++ptr;
   }
@@ -854,74 +894,102 @@ class YJson final {
     _type = YJson::Array;
     auto& array = *(_value.Array = new ArrayType);
     first = StrSkip(++first, last);
-    if (*first == ']') {
-      return first + 1;
+    if (first == last) {
+      goto missing;
     }
-    array.emplace_back();
-    first = StrSkip(array.back().parseValue(StrSkip(first, last), last), last);
-    if (first >= last)
-      return last;
+    if (*first == ']') {
+      return ++first;
+    }
 
-    while (*first == ',') {
-      if (*StrSkip(first + 1, last) == ']') {
-        return StrSkip(first + 1, last);
+    array.emplace_back();
+    first = StrSkip(array.back().parseValue(first, last), last);
+    if (first == last)
+      goto missing;
+
+    for (decltype(first) iter; *first == ',';) {
+      iter = StrSkip(++first, last);
+      if (iter == last) {
+        goto missing;
+      }
+      if (*iter == ']') {
+        return ++iter;
       }
       array.emplace_back();
-      first = StrSkip(array.back().parseValue(StrSkip(first + 1, last), last),
-                      last);
-      if (first >= last)
-        return last;
+      first = StrSkip(array.back().parseValue(iter, last), last);
+      if (first == last) {
+        goto missing;
+      }
     }
 
-    if (*first++ == ']')
-      return first;
-    throw std::u8string(u8"Can't find the ']'!");
+    first = StrSkip(first, last);
+    if (*first == ']')
+      return ++first;
+missing:
+    throw std::runtime_error("YJson Error: Array missing right square brackets.");
   }
 
   template <typename StrIterator>
   StrIterator parseObject(StrIterator first, StrIterator last) {
     _type = YJson::Object;
     ObjectType& object = *(_value.Object = new ObjectType);
+
     first = StrSkip(++first, last);
-    if (*first == '}')
-      return first + 1;
-    object.emplace_back();
-    first = StrSkip(
-        parseString(object.back().first, StrSkip(first, last), last), last);
-    if (first >= last)
-      return last;
-    if (*first != ':') {
-      throw std::runtime_error("Invalid Object.");
+    if (first == last) {
+      goto missing;
     }
-    first = StrSkip(
-        object.back().second.parseValue(StrSkip(first + 1, last), last), last);
-    while (*first == ',') {
-      if (*StrSkip(first + 1, last) == '}') {
-        return StrSkip(first + 1, last);
+    if (*first == '}') {
+      return ++first;
+    }
+
+    object.emplace_back();
+    first = StrSkip(parseString(object.back().first, first, last), last);
+
+    if (first == last) {
+      goto missing;
+    }
+    if (*first != ':') {
+      goto invalid;
+    }
+
+    first = StrSkip(++first, last);
+    first = StrSkip(object.back().second.parseValue(first, last), last);
+
+    if (first == last) {
+      goto missing;
+    }
+    
+    for (decltype(first) iter; *first == ','; ) {
+      iter = StrSkip(++first, last);
+      if (iter == last) {
+        goto missing;
+      }
+
+      if (*iter == '}') {
+        return ++iter;
       }
       object.emplace_back();
-      first = StrSkip(
-          parseString(object.back().first, StrSkip(first + 1, last), last),
-          last);
+      first = StrSkip(parseString(object.back().first, iter, last), last);
+
       if (*first != ':') {
-        throw std::runtime_error("Invalid Object.");
+        goto invalid;
       }
-      first = StrSkip(
-          object.back().second.parseValue(StrSkip(first + 1, last), last),
-          last);
-      if (!(*first))
-        return last;
+      first = StrSkip(object.back().second.parseValue(StrSkip(++first, last), last), last);
+      if (first == last) {
+        goto missing;
+      }
     }
 
     if (*first == '}') {
-      return first + 1;
+      return ++first;
     }
-    throw std::runtime_error("Invalid Object.");
+missing:
+    throw std::runtime_error("YJson Error: Object missing right brace.");
+invalid:
+    throw std::runtime_error("YJson Error: Invalid Object.");
   }
 
   template <typename _Ty>
   void printValue(_Ty& pre) const {
-    using namespace std::literals;
     switch (_type) {
       case YJson::Null:
         pre.write("null", 4);
@@ -944,7 +1012,7 @@ class YJson final {
       case YJson::Object:
         return printObject(pre);
       default:
-        std::cerr << "yjson: unknown type to print.\n";
+        throw std::runtime_error("YJson Error: Unknown type to print.");
         return;
     }
   }

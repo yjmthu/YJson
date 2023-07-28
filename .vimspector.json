@@ -4,9 +4,9 @@
       "adapter": "CodeLLDB",
       "configuration": {
         "request": "launch",
-        "program": "./build/test",
+        "program": "./build/Debug/test.exe",
         "cwd": "${workspaceFolder}",
-        "args": [ ],
+        "args": [ "./test/test.json" ],
         "environment": [ ],
         "externalConsole": true,
         "MIMode": "lldb"
