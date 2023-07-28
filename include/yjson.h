@@ -30,7 +30,7 @@ class YJson final {
                                                    0xF0, 0xF8, 0xFC};
 
  public:
-  explicit YJson() {}
+  explicit YJson(): _type(Null) {}
   enum Type { False = 0, True = 1, Null, Number, String, Array, Object };
   enum Encode { UTF8, UTF8BOM };
   typedef std::pair<std::u8string, YJson> ObjectItemType;
