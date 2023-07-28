@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <iomanip>
+#include <stdexcept>
 
 constexpr char8_t YJson::utf8bom[];
 // constexpr char8_t YJson::utf16le[];
@@ -11,6 +12,9 @@ constexpr char8_t YJson::utf8FirstCharMark[7];
 
 YJson::YJson(const std::filesystem::path& path, YJson::Encode encode) {
   std::ifstream file(path, std::ios::in | std::ios::binary);
+  if (!file.is_open()) {
+    throw std::runtime_error("YJson Error: File does not exist.");
+  }
   file.seekg(0, std::ios::end);
   size_t size = file.tellg();
   file.seekg(0, std::ios::beg);
@@ -33,13 +37,14 @@ YJson::YJson(const std::filesystem::path& path, YJson::Encode encode) {
       break;
     }
     default:
-      throw std::runtime_error("Unknown file type.");
+      throw std::runtime_error("YJson Error: File encoding format not supported.");
   }
 }
 
 std::u8string YJson::urlEncode() const {
-  using namespace std::literals;
-  assert(_type == YJson::Object);
+  if (_type != YJson::Object) {
+    throw std::logic_error("YJson Error: YJson instance type is not YJson::Object.");
+  }
   std::ostringstream param;
   for (const auto& [key, value] : *_value.Object) {
     param.write(reinterpret_cast<const char*>(key.data()), key.size());
@@ -72,8 +77,9 @@ std::u8string YJson::urlEncode() const {
 }
 
 std::u8string YJson::urlEncode(const std::u8string_view url) const {
-  using namespace std::literals;
-  assert(_type == YJson::Object);
+  if (_type != YJson::Object) {
+    throw std::logic_error("YJson Error: YJson instance type is not YJson::Object.");
+  }
   std::ostringstream param;
   param.write(reinterpret_cast<const char*>(url.data()), url.size());
   for (const auto& [key, value] : *_value.Object) {
@@ -162,7 +168,6 @@ YJson& YJson::join(const YJson& js) {
 }
 
 void YJson::printValue(std::ostream& pre, int depth) const {
-  using namespace std::literals;
   switch (_type) {
     case YJson::Null:
       pre.write("null", 4);
@@ -186,7 +191,7 @@ void YJson::printValue(std::ostream& pre, int depth) const {
       printObject(pre, depth);
       break;
     default:
-      throw std::runtime_error("Unknown yjson type.");
+      throw std::runtime_error("YJson Error: Unknown yjson type.");
   }
 }
 
@@ -246,7 +251,6 @@ void YJson::printString(std::ostream& pre, const std::u8string_view str) {
 }
 
 void YJson::printArray(std::ostream& pre) const {
-  using namespace std::literals;
   if (_value.Array->empty()) {
     pre.write("[]", 2);
     return;
