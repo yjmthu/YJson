@@ -845,11 +845,11 @@ invalid:
             if (*ptr != '\\' || *++ptr != 'u')
               throw std::runtime_error("YJson Error: Missing second-half of surrogate.");
             uc2 = parseHex4(ptr);
-            if (uc2 < utf16FirstWcharMark[1] || uc2 >= utf16FirstWcharMark[2])
+            if (uc2 >= utf16FirstWcharMark[1] && uc2 < utf16FirstWcharMark[2]) {
+              uc = 0x10000 + (((uc & 0x3FF) << 10) | (uc2 & 0x3FF));
+            } else {
               throw std::runtime_error("YJson Error: Invalid second-half of surrogate.");
-            uc = 0x10000 + (((uc & 0x3FF) << 10) | (uc2 & 0x3FF));
-          } else if (uc >= utf16FirstWcharMark[1]) {
-              throw std::runtime_error("YJson Error: Unicode first char is too big.");
+            }
           }
 
           len = 4;
@@ -859,6 +859,9 @@ invalid:
             len = 2;
           else if (uc < 0x10000)
             len = 3;
+          else if (uc > 0x10FFFF) {
+            throw std::runtime_error("YJson Error: Invalid Unicode.");
+          }
           bufferEnd = bufferBegin + len;
 
           switch (len) {
