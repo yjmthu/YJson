@@ -161,7 +161,8 @@ class YJson final {
   const ArrayType& getArray() const { return const_cast<YJson*>(this)->getArray(); }
 
   static unsigned char _toHex(unsigned char x) {
-    return x > 9 ? x + 55 : x + 48;
+    constexpr int A = 'A' - 10;
+    return x > 9 ? (x + A) : x + '0';
   }
 
   static unsigned char _fromHex(unsigned char x) {
@@ -173,7 +174,7 @@ class YJson final {
     else if (x >= '0' && x <= '9')
       y = x - '0';
     else
-      throw 0;
+      throw std::logic_error("YJson Error: Hex error.");
     return y;
   }
 
@@ -218,13 +219,13 @@ class YJson final {
     std::u8string ret(str_view.size(), 0);
     for (size_t i = 0; i < str.length(); i++) {
       if (str[i] == '+')
-        ret += ' ';
+        ret.push_back(' ');
       else if (str[i] == '%') {
         if (i + 2 < str.length())
-          throw nullptr;
+          throw std::logic_error("YJson Error: Url decode error.");
         unsigned char high = _fromHex((unsigned char)str[++i]);
         unsigned char low = _fromHex((unsigned char)str[++i]);
-        ret.push_back(high * 16 + low);
+        ret.push_back((high << 4) | low);
       } else
         ret.push_back(str[i]);
     }
