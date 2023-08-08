@@ -12,6 +12,8 @@
 #include <string>
 #include <string_view>
 #include <stdexcept>
+#include <algorithm>
+#include <cmath>
 
 #ifdef max
 #undef max
@@ -19,6 +21,8 @@
 #ifdef min
 #undef min
 #endif
+
+using namespace std::literals;
 
 class YJson final {
  private:
@@ -82,7 +86,7 @@ class YJson final {
   }
   YJson(const char8_t* str) : YJson(std::u8string_view(str)) {}
   YJson(bool val) : _type(val ? YJson::True : YJson::False) {}
-  YJson(nullptr_t ptr) : _type(YJson::Null) {}
+  YJson(std::nullptr_t ptr) : _type(YJson::Null) {}
   YJson(ArrayType array) : _type(YJson::Array) {
     _value.Array = new ArrayType(std::move(array));
   }
@@ -200,7 +204,7 @@ class YJson final {
     std::basic_string<_CharT> ret;
     ret.reserve(str_view.size());
     for (auto i : str_view) {
-      if (isalnum(static_cast<char8_t>(i)) || strchr("-_.~", i))
+      if (std::isalnum(static_cast<char8_t>(i)) || u8"-_.~"sv.find(i) != std::u8string_view::npos)
         ret.push_back(i);
       // else if (i == ' ')
       //     ret.push_back('+');
@@ -332,7 +336,7 @@ class YJson final {
     return *this;
   }
 
-  YJson& operator=(nullptr_t val) {
+  YJson& operator=(std::nullptr_t val) {
     clearData();
     _type = YJson::Null;
     return *this;
@@ -415,7 +419,7 @@ class YJson final {
   bool operator==(bool val) const {
     return _type == static_cast<YJson::Type>(val);
   }
-  bool operator==(nullptr_t val) const {
+  bool operator==(std::nullptr_t val) const {
     return _type == YJson::Null;
   }
   bool operator==(int val) const {

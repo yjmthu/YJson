@@ -10,14 +10,9 @@ if(MSVC)
   add_compile_options("/utf-8") # "/std:c++latest"
 endif()
 
-if(UNIX)
-  set(CMAKE_C_COMPILER /usr/bin/clang)
-  set(CMAKE_CXX_COMPILER /usr/bin/clang++)
-endif()
-
 project(YJson VERSION 1.0 LANGUAGES CXX)
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT ANDROID)
+if(UNIX AND CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT ANDROID)
   add_compile_options(-stdlib=libc++)
   add_link_options(-stdlib=libc++)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexperimental-library")  # std::format
