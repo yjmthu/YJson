@@ -4,7 +4,9 @@
 #include <yjson.h>
 
 #include <filesystem>
+#ifdef _WIN32
 #include <Windows.h>
+#endif
 
 namespace fs = std::filesystem;
 int main(int argc, char* argv[]) {
@@ -13,7 +15,9 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
+#ifdef _WIN32
   SetConsoleOutputCP(CP_UTF8);
+#endif
 
   fs::path json_path = argv[1];
 #if 0
