@@ -22,11 +22,12 @@ include_directories(include)
 
 link_directories (${PROJECT_SOURCE_DIR}/build)
 add_library(yjson STATIC src/yjson.cpp)
-# add_library(yjson STATIC src/yjson.cpp)
 add_executable(test test/test.cpp)
 target_link_libraries(test PUBLIC yjson)
 add_executable(usage test/usage.cpp)
 target_link_libraries(usage PUBLIC yjson)
+add_library(jslib SHARED test/jslib.cpp)
+target_link_libraries(jslib PUBLIC yjson)
 
 install(TARGETS yjson test usage
   LIBRARY DESTINATION lib
