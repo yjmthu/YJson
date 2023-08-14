@@ -36,4 +36,4 @@ install(TARGETS yjson
   RUNTIME DESTINATION bin
 )
 
-INSTALL(FILES include/yjson.h DESTINATION "include/yjson") 
+INSTALL(FILES include/yjson/yjson.h DESTINATION "include/yjson") 
