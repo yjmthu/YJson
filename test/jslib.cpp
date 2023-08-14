@@ -1,5 +1,5 @@
 ﻿#include <vector>
-#include <yjson.h>
+#include <yjson/yjson.h>
 
 std::vector<int> js2array(const YJson& json) {
   std::vector<int> result;

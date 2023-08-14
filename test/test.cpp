@@ -1,7 +1,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string.h>
-#include <yjson.h>
+#include <yjson/yjson.h>
 
 #include <filesystem>
 #ifdef _WIN32

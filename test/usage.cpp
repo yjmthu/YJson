@@ -1,4 +1,4 @@
-#include <yjson.h>
+#include <yjson/yjson.h>
 
 int main()
 {

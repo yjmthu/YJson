@@ -7,6 +7,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if(MSVC)
   add_definitions(-DUNICODE -D_UNICODE -D_CRT_SECURE_NO_WARNINGS=1)
   add_compile_options("/utf-8") # "/std:c++latest"
+else()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 endif()
 
 project(YJson VERSION 1.0 LANGUAGES CXX)
