@@ -86,7 +86,7 @@ class YJson final {
   }
   YJson(const char8_t* str) : YJson(std::u8string_view(str)) {}
   YJson(bool val) : _type(val ? YJson::True : YJson::False) {}
-  YJson(std::nullptr_t ptr) : _type(YJson::Null) {}
+  YJson(std::nullptr_t) : _type(YJson::Null) {}
   YJson(ArrayType array) : _type(YJson::Array) {
     _value.Array = new ArrayType(std::move(array));
   }
@@ -123,7 +123,7 @@ class YJson final {
   }
 
   template <typename _Iterator>
-  YJson(_Iterator first, _Iterator last) {
+  YJson(_Iterator first, _Iterator last): YJson() {
     if (first >= last) {
       throw std::logic_error("YJson Error: The iterator range is wrong.");
     }
@@ -336,7 +336,7 @@ class YJson final {
     return *this;
   }
 
-  YJson& operator=(std::nullptr_t val) {
+  YJson& operator=(std::nullptr_t) {
     clearData();
     _type = YJson::Null;
     return *this;
@@ -419,7 +419,7 @@ class YJson final {
   bool operator==(bool val) const {
     return _type == static_cast<YJson::Type>(val);
   }
-  bool operator==(std::nullptr_t val) const {
+  bool operator==(std::nullptr_t) const {
     return _type == YJson::Null;
   }
   bool operator==(int val) const {
@@ -682,43 +682,52 @@ class YJson final {
 
   template <typename StrIterator>
   StrIterator parseValue(StrIterator first, StrIterator last) {
+    StrIterator iter = first;
     if (last == first)
       goto empty;
 
     if (*first == '\"') {
+      std::u8string buffer;
+      iter = parseString(buffer, first, last);
       _type = YJson::String;
-      _value.String = new std::u8string;
-      return parseString(*_value.String, first, last);
+      _value.String = new std::u8string(std::move(buffer));
+    } else if (*first == '-' || (*first >= '0' && *first <= '9')) {
+      double buffer;
+      iter = parseNumber(first, last, buffer);
+      _type = YJson::Number;
+      _value.Double = new double { buffer };
+    } else if (*first == '[') {
+      ArrayType buffer;
+      iter = parseArray(first, last, buffer);
+      _type = YJson::Array;
+      _value.Array = new ArrayType(std::move(buffer));
+    } else if (*first == '{') {
+      ObjectType buffer;
+      iter = parseObject(first, last, buffer);
+      _type = YJson::Object;
+      _value.Object = new ObjectType(std::move(buffer));
+    } else {
+      iter += 4;
+      if (iter > last) goto empty;
+
+      if (std::equal(first, iter, "null")) {
+        _type = YJson::Null;
+      } else if (std::equal(first, iter, "true")) {
+        _type = YJson::True;
+      } else if (++iter <= last && std::equal(first, iter, "false")) {
+        _type = YJson::False;
+      } else {
+        goto empty;
+      }
     }
-    if (*first == '-' || (*first >= '0' && *first <= '9')) {
-      return parseNumber(first, last);
-    }
-    if (*first == '[') {
-      return parseArray(first, last);
-    }
-    if (*first == '{') {
-      return parseObject(first, last);
-    }
-    if (std::equal(first, first + 4, "null")) {
-      _type = YJson::Null;
-      return first + 4;
-    }
-    if (std::equal(first, first + 5, "false")) {
-      _type = YJson::False;
-      return first + 5;
-    }
-    if (std::equal(first, first + 4, "true")) {
-      _type = YJson::True;
-      return first + 4;
-    }
+    return iter;
 empty:
     throw std::runtime_error("YJson Error: Parse empty data!");
   }
 
   template <typename StrIterator>
-  StrIterator parseNumber(StrIterator first, StrIterator last) {
-    _type = YJson::Number;
-    _value.Double = new double(0);
+  static StrIterator parseNumber(StrIterator first, StrIterator last, double& buffer) {
+    buffer = 0;
     int sign = 1;
     int scale = 0;
     int signsubscale = 1, subscale = 0;
@@ -735,8 +744,8 @@ empty:
 
     if (isdigit(*first)) {
       do {
-        *_value.Double *= 10;
-        *_value.Double += *first - '0';
+        buffer *= 10;
+        buffer += *first - '0';
       } while (++first != last && isdigit(*first));
 
       if (first == last) {
@@ -746,8 +755,8 @@ empty:
 
     if (*first == '.') {
       while (++first != last && isdigit(*first)) {
-        *_value.Double *= 10.0;
-        *_value.Double += *first - '0';
+        buffer *= 10.0;
+        buffer += *first - '0';
         scale--;
       }
 
@@ -772,7 +781,7 @@ empty:
       }
     }
 result:
-    *_value.Double *= sign * pow(10, scale + signsubscale * subscale);
+    buffer *= sign * pow(10, scale + signsubscale * subscale);
     return first;
 invalid:
     throw std::runtime_error("YJson Error: Invalid Number.");
@@ -873,12 +882,15 @@ invalid:
             case 4:
               *--bufferEnd = ((uc | 0x80) & 0xBF);
               uc >>= 6;
+              [[fallthrough]];
             case 3:
               *--bufferEnd = ((uc | 0x80) & 0xBF);
               uc >>= 6;
+              [[fallthrough]];
             case 2:
               *--bufferEnd = ((uc | 0x80) & 0xBF);
               uc >>= 6;
+              [[fallthrough]];
             case 1:
               *--bufferEnd = (uc | utf8FirstCharMark[len]);
           }
@@ -898,9 +910,7 @@ error_throw:
   }
 
   template <typename StrIterator>
-  StrIterator parseArray(StrIterator first, StrIterator last) {
-    _type = YJson::Array;
-    auto& array = *(_value.Array = new ArrayType);
+  static StrIterator parseArray(StrIterator first, StrIterator last, ArrayType& buffer) {
     first = StrSkip(++first, last);
     if (first == last) {
       goto missing;
@@ -909,8 +919,8 @@ error_throw:
       return ++first;
     }
 
-    array.emplace_back();
-    first = StrSkip(array.back().parseValue(first, last), last);
+    buffer.emplace_back();
+    first = StrSkip(buffer.back().parseValue(first, last), last);
     if (first == last)
       goto missing;
 
@@ -922,8 +932,8 @@ error_throw:
       if (*iter == ']') {
         return ++iter;
       }
-      array.emplace_back();
-      first = StrSkip(array.back().parseValue(iter, last), last);
+      buffer.emplace_back();
+      first = StrSkip(buffer.back().parseValue(iter, last), last);
       if (first == last) {
         goto missing;
       }
@@ -937,10 +947,7 @@ missing:
   }
 
   template <typename StrIterator>
-  StrIterator parseObject(StrIterator first, StrIterator last) {
-    _type = YJson::Object;
-    ObjectType& object = *(_value.Object = new ObjectType);
-
+  static StrIterator parseObject(StrIterator first, StrIterator last, ObjectType& buffer) {
     first = StrSkip(++first, last);
     if (first == last) {
       goto missing;
@@ -949,8 +956,8 @@ missing:
       return ++first;
     }
 
-    object.emplace_back();
-    first = StrSkip(parseString(object.back().first, first, last), last);
+    buffer.emplace_back();
+    first = StrSkip(parseString(buffer.back().first, first, last), last);
 
     if (first == last) {
       goto missing;
@@ -960,7 +967,7 @@ missing:
     }
 
     first = StrSkip(++first, last);
-    first = StrSkip(object.back().second.parseValue(first, last), last);
+    first = StrSkip(buffer.back().second.parseValue(first, last), last);
 
     if (first == last) {
       goto missing;
@@ -975,13 +982,13 @@ missing:
       if (*iter == '}') {
         return ++iter;
       }
-      object.emplace_back();
-      first = StrSkip(parseString(object.back().first, iter, last), last);
+      buffer.emplace_back();
+      first = StrSkip(parseString(buffer.back().first, iter, last), last);
 
       if (*first != ':') {
         goto invalid;
       }
-      first = StrSkip(object.back().second.parseValue(StrSkip(++first, last), last), last);
+      first = StrSkip(buffer.back().second.parseValue(StrSkip(++first, last), last), last);
       if (first == last) {
         goto missing;
       }
