@@ -4,11 +4,11 @@
 #include <iomanip>
 #include <stdexcept>
 
-constexpr char8_t YJson::utf8bom[];
+constexpr std::array<char8_t, 3> YJson::utf8bom;
 // constexpr char8_t YJson::utf16le[];
 
-constexpr char16_t YJson::utf16FirstWcharMark[3];
-constexpr char8_t YJson::utf8FirstCharMark[7];
+constexpr std::array<char16_t, 3> YJson::utf16FirstWcharMark;
+constexpr std::array<char8_t, 7> YJson::utf8FirstCharMark;
 
 YJson::YJson(const std::filesystem::path& path, YJson::Encode encode): _type(Null) {
   std::ifstream file(path, std::ios::in | std::ios::binary);
@@ -116,31 +116,12 @@ std::u8string YJson::urlEncode(const std::u8string_view url) const {
   return std::u8string(result.begin(), result.end());
 }
 
-YJson::~YJson() {
-  switch (_type) {
-    case YJson::Array:
-      delete _value.Array;
-      break;
-    case YJson::Object:
-      delete _value.Object;
-      break;
-    case YJson::String:
-      delete _value.String;
-      break;
-    case YJson::Number:
-      delete _value.Double;
-      break;
-    default:
-      break;
-  }
-}
-
 bool YJson::isUtf8BomFile(const std::filesystem::path& path) {
   std::ifstream file(path, std::ios::in | std::ios::binary);
   if (file.is_open()) {
-    unsigned char bom[3];
-    if (file.read(reinterpret_cast<char*>(bom), 3)) {
-      if (std::equal(bom, bom + 3, utf8bom)) {
+    std::array<char8_t, 3> bom;
+    if (file.read(reinterpret_cast<char*>(bom.data()), 3)) {
+      if (bom == utf8bom) {
         file.close();
         return true;
       }

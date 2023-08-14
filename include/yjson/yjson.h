@@ -13,6 +13,7 @@
 #include <string_view>
 #include <stdexcept>
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 #ifdef max
@@ -26,12 +27,12 @@ using namespace std::literals;
 
 class YJson final {
  private:
-  static constexpr char8_t utf8bom[] = {0xEF, 0xBB, 0xBF};
+  static constexpr std::array<char8_t, 3> utf8bom {0xEF, 0xBB, 0xBF};
   // static constexpr char8_t utf16le[] = {0xFF, 0xFE};
 
-  static constexpr char16_t utf16FirstWcharMark[3] = {0xD800, 0xDC00, 0xE000};
-  static constexpr char8_t utf8FirstCharMark[7] = {0x00, 0x00, 0xC0, 0xE0,
-                                                   0xF0, 0xF8, 0xFC};
+  static constexpr std::array<char16_t, 3> utf16FirstWcharMark {0xD800, 0xDC00, 0xE000};
+  static constexpr std::array<char8_t, 7> utf8FirstCharMark {
+    0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC};
 
  public:
   explicit YJson(): _type(Null) {}
@@ -148,7 +149,7 @@ class YJson final {
   }
 
   explicit YJson(const std::filesystem::path& path, Encode encode);
-  ~YJson();
+  ~YJson() { clearData(); }
 
   YJson::Type& getType() { return _type; }
   const YJson::Type& getType() const { return const_cast<YJson*>(this)->getType(); }
@@ -261,7 +262,7 @@ class YJson final {
       return false;
     }
     if (encode == UTF8BOM) {
-      result.write(reinterpret_cast<const char*>(utf8bom), 3);
+      result.write(reinterpret_cast<const char*>(utf8bom.data()), 3);
     }
     if (fmt) {
       printValue(result, 0);
@@ -464,16 +465,6 @@ class YJson final {
     }
   }
 
-  void setText(const std::filesystem::path& val) {
-    if (_type != YJson::String) {
-      clearData();
-      _type = YJson::String;
-      _value.String = new std::u8string(val.u8string());
-    } else {
-      _value.String->assign(val.u8string());
-    }
-  }
-
   template <typename _Ty>
   void setText(const _Ty& utf8Array) {
     if (_type != YJson::String) {
@@ -506,11 +497,8 @@ class YJson final {
   }
 
   YJson& joinA(const YJson& js);
-  static YJson joinA(YJson j1, const YJson& j2) { return j1.joinA(j2); }
   YJson& joinO(const YJson& js);
-  static YJson joinO(YJson j1, const YJson& j2) { return j1.joinO(j2); }
   YJson& join(const YJson& js);
-  static YJson join(YJson j1, const YJson& j2) { return j1.join(j2); }
 
   ArrayIterator find(size_t index) {
     auto iter = _value.Array->begin();
@@ -649,6 +637,7 @@ class YJson final {
 
   void clearA() { _value.Array->clear(); }
   void clearO() { _value.Object->clear(); }
+  YJson copy() const { return YJson(*this); }
   ArrayIterator beginA() { return _value.Array->begin(); }
   ObjectIterator beginO() { return _value.Object->begin(); }
   ArrayIterator endA() { return _value.Array->end(); }
@@ -1051,6 +1040,10 @@ invalid:
         break;
       case YJson::Number:
         delete _value.Double;
+        break;
+      case YJson::String:
+        delete _value.String;
+        break;
       default:
         break;
     }
