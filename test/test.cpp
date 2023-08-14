@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
   try {
     YJson json(json_path, YJson::UTF8);
     std::cout << json;
-  } catch (std::runtime_error er) {
+  } catch (const std::runtime_error& er) {
     SetConsoleOutputCP(CP_ACP);
     std::cout << er.what() << std::endl;
   }
