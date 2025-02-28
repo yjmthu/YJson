@@ -25,6 +25,10 @@
 
 using namespace std::literals;
 
+class YJson;
+std::ostream& operator<<(std::ostream& os, const YJson& outJson);
+std::ostream& operator<<(std::ofstream& out, const YJson& outJson);
+
 class YJson final {
  private:
   static constexpr std::array<char8_t, 3> utf8bom {0xEF, 0xBB, 0xBF};
