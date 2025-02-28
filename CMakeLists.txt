@@ -15,11 +15,11 @@ endif()
 
 project(YJson VERSION 1.0 LANGUAGES CXX)
 
-if(UNIX AND CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT ANDROID)
-  add_compile_options(-stdlib=libc++)
-  add_link_options(-stdlib=libc++)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexperimental-library")  # std::format
-endif()
+# if(UNIX AND CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT ANDROID)
+#   add_compile_options(-stdlib=libc++)
+#   add_link_options(-stdlib=libc++)
+#   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexperimental-library")  # std::format
+# endif()
 
 add_library(yjson SHARED src/yjson.cpp)
 # add_library(yjson STATIC src/yjson.cpp)
